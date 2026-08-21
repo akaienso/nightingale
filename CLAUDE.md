@@ -1,0 +1,80 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+**Nightingale** — a Next.js 14 (App Router) web app for natural, colloquial Ukrainian ↔ English translation with cultural context. The in-app AI guide persona is **Olia** (Оля). This is a learning / professional-development project, not a production service at this repo.
+
+## Commands
+
+Package manager is **Yarn** (Berry, see `.yarnrc.yml`). There is no test suite.
+
+```bash
+yarn dev            # dev server on :3000
+yarn build          # production build
+yarn start          # run production build
+yarn lint           # next lint (ESLint)
+
+yarn prisma generate   # regenerate Prisma client (run after schema changes)
+yarn prisma db push    # sync schema.prisma -> database (no migrations dir)
+yarn prisma db seed    # runs scripts/safe-seed.ts via tsx
+```
+
+Local setup requires a PostgreSQL `DATABASE_URL`, plus `NEXTAUTH_SECRET` and `NEXTAUTH_URL`. Copy `.env.example` → `.env`. AI, Google sign-in, S3 upload, and Turnstile keys are all optional — the app runs without them, only the corresponding features go dark.
+
+## Build gotchas
+
+- **ESLint errors do NOT fail the build** (`next.config.js: eslint.ignoreDuringBuilds = true`), but **TypeScript errors DO** (`typescript.ignoreBuildErrors = false`). Type-check your changes; don't rely on lint blocking a bad merge.
+- `prisma/schema.prisma` hardcodes the client `output` path to `/home/ubuntu/ua_us_translator/nextjs_space/node_modules/.prisma/client` (an artifact of the original build host). On a different machine `prisma generate` may need this path adjusted to the default (`node_modules/.prisma/client`) or the directory to exist.
+- Build output dir and mode are env-overridable: `NEXT_DIST_DIR` (default `.next`), `NEXT_OUTPUT_MODE`. `tsconfig.json` includes both `.next/` and `.build/` types.
+- Import alias: `@/*` maps to the project root (`./`), e.g. `@/lib/anthropic`, `@/components/ui/button`.
+
+## Architecture
+
+### Request flow for AI features
+`app/api/translate` (and `translate-image`, `chat`) are the AI entry points. The pattern in `app/api/translate/route.ts` is the canonical one:
+
+1. **Rate-limit shield first** (`lib/rate-limit.ts`) — a DB-backed limiter (`RateLimit` table) caps expensive LLM calls *before* the model is called. Guests capped by IP (`getClientIp`), signed-in users by account id. Limits are tunable via env (`GUEST_TRANSLATE_PER_HOUR`, `USER_TRANSLATE_PER_DAY`, etc.).
+2. **Settings-derived system prompt** — `buildSystemPrompt(body)` assembles Olia's persona + translation rules from the request's settings (direction, Ukrainian dialect, English variety, speaker/addressee gender, formality, output style, message format/medium, emoji toggle, UI language). This is the heart of translation behavior; changing tone/rules happens here, not in the model config.
+3. **Streaming** — responses stream to the client as SSE. The route parses Anthropic deltas via `parseTextDeltas` and re-emits its own `{status, partial}` / `{status:'completed', result}` events. Final text is coerced to JSON via `extractJson` (models return `{translation, culturalNote}` as raw JSON).
+
+### `lib/anthropic.ts` — the model client
+Calls the Anthropic **Messages API** directly (`api.anthropic.com/v1/messages`), NOT an SDK. Key adaptations (the app was originally written against an OpenAI-style chat/completions API):
+- System prompt is a top-level `system` param, not a message. `toAnthropicMessages()` splits OpenAI-style message lists and drops leading assistant turns (Anthropic requires the first message be `user`).
+- Models: `ANTHROPIC_MODEL = claude-sonnet-5` (chat), `HAIKU_MODEL = claude-haiku-4-5` (the two-panel translator — cheaper/faster, still gets the full system prompt).
+- **Do not send `temperature`** — Sonnet 5 rejects it with a 400. `buildBody` intentionally omits it.
+- The static system block is sent with `cache_control: ephemeral` for prompt caching.
+- Env key is `ANTHROPIC_API_KEY` (`.env.example` also lists a legacy `ABACUSAI_API_KEY`).
+
+### Auth (`lib/auth.ts`)
+NextAuth with **JWT sessions** (not DB sessions), Prisma adapter. Two providers: Credentials (bcrypt + Turnstile bot-check in `authorize`) and Google OAuth. The user id is threaded into the JWT and session via callbacks — read it as `(session.user as {id}).id`.
+
+### Middleware (`middleware.ts`)
+Host-based rewrite: requests to `nightingale.im` / `www.nightingale.im` at path `/` are rewritten to `app/site` (the marketing one-pager). Everything else serves the app. Reads host from `x-forwarded-host` first (behind Cloudflare/proxy). Runs on root path only; skips `/api`, `_next`, static assets.
+
+### Client app shell
+`app/components/translator-app.tsx` is the top-level client component. It manages `TranslationMode` (`panel` | `chat` | `conversation` | `image`) and a `TranslationSettings` object. Settings persist to localStorage for guests and **sync to the account** (source of truth) for signed-in users via `app/api/account`. Chat, live-conversation, and image modes require auth (`AUTH_REQUIRED_MODES`). Live Conversation is experimental and only enabled on the `abacusai.app` dev host.
+
+Note: UI label "Output Style" is stored internally as `outputFormat`, and UI "Output Format" (delivery medium) is `messageFormat` — the mismatch is deliberate to avoid migrating persisted settings and `TranslationHistory` rows.
+
+### Data model (`prisma/schema.prisma`, PostgreSQL)
+Standard NextAuth tables (`User`, `Account`, `Session`, `VerificationToken`) plus: `User.settings` (Json, synced prefs) and `preferredName`/`bio`; `TranslationHistory`; `ChatConversation` → `ChatMessage`; `RateLimit` (the limiter's buckets).
+
+### i18n
+`lib/i18n.ts` holds the full EN/UK dictionary and `translate` helper; `components/i18n-provider.tsx` exposes `useI18n()` (`t`, `lang`, `setLang`). UI language is separate from translation direction, and it controls which language cultural notes are written in.
+
+### Changelog / versioning
+`lib/changelog.ts` is the single source of app version (`APP_VERSION`) and the `CHANGELOG` array (rendered at `/changelog`). Every changelog item needs both `en` and `uk` text. Bump `APP_VERSION` (semver) and prepend a release when shipping user-facing changes.
+
+## UI conventions
+
+Read `STYLE_GUIDE.md` before building UI. Key points:
+- **shadcn/ui** primitives in `components/ui/` (config in `components.json`); app-feature components in `app/components/`; reusable layout wrappers in `components/layouts/`.
+- Fonts: `font-sans` (DM Sans, body), `font-display` (Plus Jakarta Sans, headings), `font-mono` (JetBrains Mono, numeric/IDs). Configured in `app/layout.tsx`.
+- **Never hardcode colors** — use the CSS-variable design tokens (`bg-primary`, `text-muted-foreground`, `border-border`, …). Same for spacing (8px grid), radius, shadows.
+- Do not remove providers from `app/layout.tsx` without reason — `ChunkLoadErrorHandler` in particular guards a known ChunkLoadError race.
+
+## Company / naming
+
+Per global instructions: company is **Member Minder Pro, LLC** (three words, never "MemberMinder"). No AI/Claude attribution in any commits or PRs. Note this project directory is **not a git repository**.

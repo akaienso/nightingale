@@ -1,0 +1,86 @@
+# ---------------------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------------------
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# ---------------------------------------------------------------------------
+# Next.js build output
+# ---------------------------------------------------------------------------
+/.next/
+/out/
+/build
+# Alternate dist dir used when NEXT_DIST_DIR=.build
+/.build/
+next-env.d.ts
+*.tsbuildinfo
+
+# ---------------------------------------------------------------------------
+# Environment & secrets  (keep the template, ignore real values)
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# ---------------------------------------------------------------------------
+# Prisma
+# ---------------------------------------------------------------------------
+# Generated client (in case schema output is pointed back inside the repo)
+/prisma/generated/
+/prisma/*.db
+/prisma/*.db-journal
+
+# ---------------------------------------------------------------------------
+# Testing / coverage
+# ---------------------------------------------------------------------------
+/coverage
+
+# ---------------------------------------------------------------------------
+# Logs & debug
+# ---------------------------------------------------------------------------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ---------------------------------------------------------------------------
+# Deploy / platform
+# ---------------------------------------------------------------------------
+.vercel
+.wrangler/
+.open-next/
+
+# ---------------------------------------------------------------------------
+# Native app shells (added when Capacitor/Expo is introduced)
+# Generated native projects are re-created from config; keep source, ignore builds.
+# ---------------------------------------------------------------------------
+/ios/App/Pods/
+/ios/App/build/
+/ios/App/App/public/
+/android/.gradle/
+/android/app/build/
+/android/build/
+/android/app/src/main/assets/public/
+
+# ---------------------------------------------------------------------------
+# Editor / OS cruft
+# ---------------------------------------------------------------------------
+.DS_Store
+*.pem
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# ---------------------------------------------------------------------------
+# Claude Code / local agent memory (not part of the app)
+# ---------------------------------------------------------------------------
+/.remember/

@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 80 15% 97%;
+    --foreground: 40 15% 15%;
+
+    --card: 60 10% 99%;
+    --card-foreground: 40 15% 15%;
+
+    --popover: 60 10% 99%;
+    --popover-foreground: 40 15% 15%;
+
+    --primary: 152 32% 33%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 88 30% 90%;
+    --secondary-foreground: 150 25% 22%;
+
+    --muted: 75 12% 93%;
+    --muted-foreground: 40 8% 46%;
+
+    --accent: 34 52% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 60 10% 88%;
+    --input: 60 10% 88%;
+    --ring: 152 32% 33%;
+
+    --radius: 0.625rem;
+    --radius-sm: calc(0.625rem - 4px);
+    --radius-lg: calc(0.625rem + 4px);
+    --radius-full: 9999px;
+
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+    --spacing-3xl: 64px;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04), 0 1px 3px 0 rgb(0 0 0 / 0.06);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 350ms;
+
+    --chart-1: 152 32% 33%;
+    --chart-2: 88 38% 48%;
+    --chart-3: 34 52% 45%;
+    --chart-4: 20 55% 52%;
+    --chart-5: 280 40% 55%;
+  }
+
+  .dark {
+    --background: 80 10% 7%;
+    --foreground: 60 12% 90%;
+
+    --card: 75 10% 10%;
+    --card-foreground: 60 12% 90%;
+
+    --popover: 75 10% 10%;
+    --popover-foreground: 60 12% 90%;
+
+    --primary: 150 36% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 90 20% 16%;
+    --secondary-foreground: 88 30% 78%;
+
+    --muted: 75 10% 14%;
+    --muted-foreground: 50 8% 55%;
+
+    --accent: 36 55% 52%;
+    --accent-foreground: 30 45% 12%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 70 8% 18%;
+    --input: 70 8% 18%;
+    --ring: 150 36% 50%;
+
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.2), 0 1px 2px -1px rgb(0 0 0 / 0.2);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.25), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.2);
+
+    --chart-1: 150 36% 50%;
+    --chart-2: 88 35% 55%;
+    --chart-3: 36 55% 52%;
+    --chart-4: 20 58% 55%;
+    --chart-5: 280 45% 58%;
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary) / 0.15);
+    color: hsl(var(--primary));
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background-color: transparent; }
+  ::-webkit-scrollbar-thumb { background-color: hsl(var(--border)); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background-color: hsl(var(--muted-foreground) / 0.5); }
+
+  [data-hydration-error] { display: none !important; }
+}
+
+@layer utilities {
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Branded nightingale loading overlay */
+  @keyframes ng-overlay-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .hero-gradient {
+    background:
+      radial-gradient(ellipse 60% 50% at 50% -10%, hsl(217 55% 45% / 0.08), transparent),
+      radial-gradient(ellipse 40% 40% at 80% 0%, hsl(152 55% 45% / 0.06), transparent),
+      radial-gradient(ellipse 30% 30% at 20% 100%, hsl(340 60% 60% / 0.05), transparent);
+  }
+
+  .dark .hero-gradient {
+    background:
+      radial-gradient(ellipse 60% 50% at 50% -10%, hsl(217 60% 55% / 0.12), transparent),
+      radial-gradient(ellipse 40% 40% at 80% 0%, hsl(152 50% 50% / 0.08), transparent),
+      radial-gradient(ellipse 30% 30% at 20% 100%, hsl(340 55% 55% / 0.06), transparent);
+  }
+}

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a2744"/>
+      <stop offset="100%" style="stop-color:#2a3f5f"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <!-- Nightingale bird silhouette -->
+  <g transform="translate(12, 10)" fill="#f5a623">
+    <!-- Body -->
+    <ellipse cx="20" cy="28" rx="12" ry="10" opacity="0.9"/>
+    <!-- Head -->
+    <circle cx="28" cy="18" r="7" opacity="0.95"/>
+    <!-- Beak -->
+    <path d="M34 17 L40 15 L35 19 Z" opacity="0.95"/>
+    <!-- Eye -->
+    <circle cx="30" cy="17" r="1.5" fill="#1a2744"/>
+    <!-- Tail -->
+    <path d="M8 28 Q2 22 4 14 Q8 20 12 24" opacity="0.85"/>
+    <path d="M8 30 Q0 26 1 18 Q6 24 10 26" opacity="0.75"/>
+    <!-- Wing detail -->
+    <path d="M16 24 Q20 20 26 22 Q22 26 16 28" fill="#1a2744" opacity="0.3"/>
+    <!-- Musical notes floating -->
+    <circle cx="36" cy="10" r="1.5" opacity="0.6"/>
+    <line x1="37.5" y1="10" x2="37.5" y2="4" stroke="#f5a623" stroke-width="0.8" opacity="0.6"/>
+    <circle cx="32" cy="6" r="1.2" opacity="0.4"/>
+    <line x1="33.2" y1="6" x2="33.2" y2="1" stroke="#f5a623" stroke-width="0.7" opacity="0.4"/>
+  </g>
+</svg>
