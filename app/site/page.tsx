@@ -23,8 +23,14 @@ import {
   Rocket,
 } from 'lucide-react';
 import { useI18n } from '@/components/i18n-provider';
-import { UiLang } from '@/lib/i18n';
+import { UI_LANGS } from '@/lib/i18n';
 import { ThemeToggle } from '@/components/theme-toggle';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,6 +41,7 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from '@/components/ui/accordion';
+import { InstallInstructions, VerifyServiceGuide } from '@/app/components/install-guide';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -126,14 +133,28 @@ export default function SitePage() {
           </nav>
 
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setLang((lang === 'en' ? 'uk' : 'en') as UiLang)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-border transition-colors"
-              aria-label="Toggle language"
-            >
-              <Globe className="w-3.5 h-3.5" />
-              {lang === 'en' ? 'EN' : 'UK'}
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+                  aria-label="Select language"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  {lang.toUpperCase()}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[9rem]">
+                {UI_LANGS.map((l) => (
+                  <DropdownMenuItem
+                    key={l.value}
+                    onClick={() => setLang(l.value)}
+                    className={lang === l.value ? 'font-semibold text-foreground' : ''}
+                  >
+                    {l.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <ThemeToggle />
             <Button asChild size="sm" className="hidden sm:inline-flex bg-primary hover:bg-primary/90 text-primary-foreground">
               <a href={APP_URL}>{t('site.nav.launch')}</a>
@@ -280,6 +301,18 @@ export default function SitePage() {
                     </AccordionContent>
                   </AccordionItem>
                 ))}
+                <AccordionItem value="usage-install">
+                  <AccordionTrigger className="text-left text-base font-medium">{t('install.faqQ')}</AccordionTrigger>
+                  <AccordionContent>
+                    <InstallInstructions />
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="usage-verify">
+                  <AccordionTrigger className="text-left text-base font-medium">{t('verify.faqQ')}</AccordionTrigger>
+                  <AccordionContent>
+                    <VerifyServiceGuide />
+                  </AccordionContent>
+                </AccordionItem>
               </Accordion>
             </div>
 

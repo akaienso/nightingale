@@ -18,7 +18,7 @@ const TYPE_STYLES: Record<ChangeType, string> = {
 function formatDate(iso: string, lang: string): string {
   // Deterministic across server/client: fixed locale + UTC timezone.
   const d = new Date(iso + 'T00:00:00Z');
-  return d.toLocaleDateString(lang === 'uk' ? 'uk-UA' : 'en-US', {
+  return d.toLocaleDateString(lang === 'uk' ? 'uk-UA' : lang === 'es' ? 'es-ES' : 'en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -97,7 +97,7 @@ export default function ChangelogPage() {
                       {typeLabel(item.type)}
                     </span>
                     <span className="text-sm leading-relaxed text-foreground/90">
-                      {lang === 'uk' ? item.uk : item.en}
+                      {lang === 'uk' ? item.uk : lang === 'es' ? (item.es ?? item.en) : item.en}
                     </span>
                   </li>
                 ))}

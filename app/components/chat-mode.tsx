@@ -2,12 +2,15 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Send, Loader2, User, Sparkles, Plus, MessagesSquare, Trash2, Share2, Download, Copy, Mail, ChevronDown } from 'lucide-react';
+import VerifyTranslationIcon from './verify-translation-icon';
+import { buildVerifyUrl, VerifyProvider } from '@/lib/verify-translation';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import VoiceControls from './voice-controls';
 import { useI18n } from '@/components/i18n-provider';
 import ProcessingStatus from './processing-status';
+import SkipNavPill from './skip-nav-pill';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +34,7 @@ interface ConversationSummary {
   messageCount: number;
 }
 
-export default function ChatMode({ speakerGender, englishDialect, emojis, enterKeyChat }: { speakerGender?: string; englishDialect?: string; emojis?: boolean; enterKeyChat?: string }) {
+export default function ChatMode({ speakerGender, englishDialect, partnerLang, spanishDialect, emojis, enterKeyChat, direction, verifyProvider, customVerifyUrl }: { speakerGender?: string; englishDialect?: string; partnerLang?: string; spanishDialect?: string; emojis?: boolean; enterKeyChat?: string; direction?: string; verifyProvider?: string; customVerifyUrl?: string }) {
   const { t, lang } = useI18n();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -45,6 +48,21 @@ export default function ChatMode({ speakerGender, englishDialect, emojis, enterK
   useEffect(() => {
     scrollRef?.current?.scrollTo?.({ top: scrollRef?.current?.scrollHeight ?? 0, behavior: 'smooth' });
   }, [messages]);
+
+  // Anchor to each reply so the single arrows step reply-by-reply. The double
+  // arrows (handled inside the pill) still jump straight to the top/bottom.
+  const getChatStops = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return { up: [], down: [] };
+    const cRect = el.getBoundingClientRect();
+    const rows = Array.from(el.querySelectorAll('[data-chat-msg]')) as HTMLElement[];
+    const tops = rows.map((r) => {
+      const rRect = r.getBoundingClientRect();
+      return Math.max(0, Math.round(rRect.top - cRect.top + el.scrollTop - 8));
+    });
+    const uniq = Array.from(new Set(tops)).sort((a, b) => a - b);
+    return { up: uniq, down: uniq };
+  }, []);
 
   // Auto-grow the input textarea so the full message stays visible while editing.
   // Keyed on `input` so it also updates for voice input, prompt chips, and resets after sending.
@@ -140,6 +158,8 @@ export default function ChatMode({ speakerGender, englishDialect, emojis, enterK
           uiLang: lang,
           speakerGender: speakerGender ?? 'male',
           englishDialect: englishDialect ?? 'american',
+          partnerLang: partnerLang ?? 'english',
+          spanishDialect: spanishDialect ?? 'latam',
           emojis: emojis === true,
           conversationId: conversationId ?? undefined,
         }),
@@ -421,6 +441,7 @@ export default function ChatMode({ speakerGender, englishDialect, emojis, enterK
         {messages.map((msg) => (
           <div
             key={msg.id}
+            data-chat-msg
             className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             {msg.role === 'assistant' && (
@@ -434,9 +455,29 @@ export default function ChatMode({ speakerGender, englishDialect, emojis, enterK
                   <p className="text-sm leading-relaxed">{msg.content}</p>
                 </div>
               ) : (
-                <div className="bg-card border border-border/50 rounded-2xl rounded-tl-sm px-4 py-2.5" style={{ boxShadow: 'var(--shadow-sm)' }}>
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{renderContent(msg.content)}</div>
-                </div>
+                <>
+                  <div className="bg-card border border-border/50 rounded-2xl rounded-tl-sm px-4 py-2.5" style={{ boxShadow: 'var(--shadow-sm)' }}>
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap">{renderContent(msg.content)}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = buildVerifyUrl(
+                        msg.content,
+                        direction ?? 'en-to-ua',
+                        partnerLang ?? 'english',
+                        (verifyProvider ?? 'deepl') as VerifyProvider,
+                        customVerifyUrl,
+                      );
+                      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                    }}
+                    className="inline-flex items-center gap-1 mt-1 ml-1 px-1.5 py-0.5 rounded text-[11px] text-primary/70 hover:bg-primary hover:text-primary-foreground transition-colors"
+                    title={t('verify.tooltip')}
+                  >
+                    <VerifyTranslationIcon className="w-3.5 h-3.5" />
+                    <span>{t('verify.tooltip')}</span>
+                  </button>
+                </>
               )}
             </div>
             {msg.role === 'user' && (
@@ -465,6 +506,7 @@ export default function ChatMode({ speakerGender, englishDialect, emojis, enterK
           <VoiceControls
             onTranscript={setInput}
             direction="en-to-ua"
+            partnerLang={partnerLang}
             compact
           />
           <textarea
@@ -510,6 +552,13 @@ export default function ChatMode({ speakerGender, englishDialect, emojis, enterK
           {t((enterKeyChat ?? 'mod') === 'mod' ? 'chat.hint.mod' : 'chat.hint.enter')}
         </p>
       </div>
+
+      <SkipNavPill
+        getStops={getChatStops}
+        scrollTargetRef={scrollRef}
+        variant="media"
+        wrapperClassName="fixed left-1/2 -translate-x-1/2 bottom-24 z-40"
+      />
     </div>
   );
 }

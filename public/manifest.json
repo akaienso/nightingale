@@ -4,8 +4,8 @@
   "description": "Natural Ukrainian for Every Conversation — powered by Olia, your AI language guide",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#2563b8",
-  "theme_color": "#2563b8",
+  "background_color": "#397A5B",
+  "theme_color": "#397A5B",
   "orientation": "any",
   "icons": [
     {
@@ -19,12 +19,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    },
-    {
-      "src": "/nightingale-icon.png",
-      "sizes": "562x562",
-      "type": "image/png",
-      "purpose": "any"
     }
   ]
 }

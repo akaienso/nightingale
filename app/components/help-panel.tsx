@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useI18n } from '@/components/i18n-provider';
 import { APP_VERSION } from '@/lib/changelog';
 import { useState } from 'react';
+import { InstallInstructions, VerifyServiceGuide } from './install-guide';
 
 interface HelpPanelProps {
   open: boolean;
@@ -125,6 +126,46 @@ export default function HelpPanel({ open, onClose, onShowWelcome, onStartTour }:
                   </div>
                 );
               })}
+
+              {/* Install-as-app guide */}
+              <div className="rounded-lg border border-border/50 overflow-hidden">
+                <button
+                  onClick={() => setExpandedQ(expandedQ === 'install' ? null : 'install')}
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium hover:bg-muted/50 transition-colors"
+                >
+                  <span>{t('install.faqQ')}</span>
+                  {expandedQ === 'install' ? (
+                    <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                  )}
+                </button>
+                {expandedQ === 'install' && (
+                  <div className="px-4 pb-4 pt-1">
+                    <InstallInstructions />
+                  </div>
+                )}
+              </div>
+
+              {/* Verify-service guide */}
+              <div className="rounded-lg border border-border/50 overflow-hidden">
+                <button
+                  onClick={() => setExpandedQ(expandedQ === 'verify' ? null : 'verify')}
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium hover:bg-muted/50 transition-colors"
+                >
+                  <span>{t('verify.faqQ')}</span>
+                  {expandedQ === 'verify' ? (
+                    <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                  )}
+                </button>
+                {expandedQ === 'verify' && (
+                  <div className="px-4 pb-4 pt-1">
+                    <VerifyServiceGuide />
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 

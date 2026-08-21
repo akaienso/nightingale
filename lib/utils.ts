@@ -23,6 +23,30 @@ export function englishFlag(dialect?: string): string {
   }
 }
 
+// Flag/icon shown for the selected Spanish variety. The neutral "latam" option
+// uses a globe (🌎) rather than a single national flag.
+export function spanishFlag(variety?: string): string {
+  switch (variety) {
+    case 'castilian':
+      return '🇪🇸';
+    case 'mexican':
+      return '🇲🇽';
+    case 'rioplatense':
+      return '🇦🇷';
+    case 'colombian':
+      return '🇨🇴';
+    case 'latam':
+    default:
+      return '🌎';
+  }
+}
+
+// Flag for the active partner (non-Ukrainian) language, honouring whichever
+// variety is selected for that language.
+export function partnerFlag(partnerLang?: string, englishDialect?: string, spanishDialect?: string): string {
+  return partnerLang === 'spanish' ? spanishFlag(spanishDialect) : englishFlag(englishDialect);
+}
+
 export function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)

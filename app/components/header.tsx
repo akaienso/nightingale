@@ -19,6 +19,7 @@ import type { TranslationMode } from './translator-app';
 import { useI18n } from '@/components/i18n-provider';
 import { useEffect, useState } from 'react';
 import { APP_VERSION } from '@/lib/changelog';
+import AuthPromptDialog from './auth-prompt-dialog';
 
 const SEEN_VERSION_KEY = 'nightingale-seen-version';
 
@@ -83,9 +84,13 @@ export default function Header({ mode, onModeChange, onSettingsToggle, onHistory
     }
   }, []);
 
-  // Live Conversation mode is still experimental; only expose it on the
-  // development/testing host. Everywhere else the button is hidden entirely.
+  // Live Conversation ("Talk") mode is decommissioned pending further
+  // development — it must not appear anywhere, even grayed out. It is gated
+  // behind liveEnabled, which is currently never enabled.
   const modes = modeConfig.filter((m) => m.value !== 'conversation' || liveEnabled);
+
+  // Dialog shown when a signed-out visitor clicks a locked (members-only) tab.
+  const [authPromptOpen, setAuthPromptOpen] = useState(false);
 
   return (
     <>
@@ -108,13 +113,13 @@ export default function Header({ mode, onModeChange, onSettingsToggle, onHistory
               return (
                 <button
                   key={value}
-                  onClick={() => !disabled && onModeChange(value)}
-                  disabled={disabled}
+                  onClick={() => (disabled ? setAuthPromptOpen(true) : onModeChange(value))}
+                  aria-disabled={disabled}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-fast whitespace-nowrap ${
                     mode === value
                       ? 'bg-background text-foreground shadow-sm'
                       : disabled
-                      ? 'text-muted-foreground/50 cursor-not-allowed'
+                      ? 'text-muted-foreground/50 hover:text-muted-foreground/80'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                   title={disabled ? t('header.signInTooltip') : label}
@@ -269,7 +274,7 @@ export default function Header({ mode, onModeChange, onSettingsToggle, onHistory
       </header>
 
       {/* Bottom Navigation - mobile only */}
-      <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden border-t border-border/50 bg-background/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+      <nav data-mobile-tabbar className="fixed bottom-0 inset-x-0 z-50 md:hidden border-t border-border/50 bg-background/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-stretch justify-around">
           {modes.map(({ value, shortKey, icon: Icon, authRequired }) => {
             const disabled = authRequired && !isAuthenticated;
@@ -278,8 +283,8 @@ export default function Header({ mode, onModeChange, onSettingsToggle, onHistory
             return (
               <button
                 key={value}
-                onClick={() => !disabled && onModeChange(value)}
-                disabled={disabled}
+                onClick={() => (disabled ? setAuthPromptOpen(true) : onModeChange(value))}
+                aria-disabled={disabled}
                 aria-label={label}
                 className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] transition-colors duration-fast ${
                   active
@@ -299,6 +304,8 @@ export default function Header({ mode, onModeChange, onSettingsToggle, onHistory
           })}
         </div>
       </nav>
+
+      <AuthPromptDialog open={authPromptOpen} onClose={() => setAuthPromptOpen(false)} />
     </>
   );
 }

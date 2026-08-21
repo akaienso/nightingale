@@ -10,10 +10,15 @@ interface VoiceControlsProps {
   onTranscript: (text: string) => void;
   textToSpeak?: string;
   direction: string;
+  partnerLang?: string;
   compact?: boolean;
 }
 
-export default function VoiceControls({ onTranscript, textToSpeak, direction, compact }: VoiceControlsProps) {
+export default function VoiceControls({ onTranscript, textToSpeak, direction, partnerLang, compact }: VoiceControlsProps) {
+  // Locale codes for the non-Ukrainian "partner" side (English or Spanish).
+  const partnerSttLang = partnerLang === 'spanish' ? 'es-ES' : 'en-US';
+  const partnerTtsLang = partnerLang === 'spanish' ? 'es-ES' : 'en-US';
+  const partnerVoicePrefix = partnerLang === 'spanish' ? 'es' : 'en';
   const { t } = useI18n();
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -46,7 +51,7 @@ export default function VoiceControls({ onTranscript, textToSpeak, direction, co
 
     // Set language based on source direction
     const isEnToUa = direction === 'en-to-ua';
-    recognition.lang = isEnToUa ? 'en-US' : 'uk-UA';
+    recognition.lang = isEnToUa ? partnerSttLang : 'uk-UA';
 
     let finalTranscript = '';
 
@@ -100,13 +105,13 @@ export default function VoiceControls({ onTranscript, textToSpeak, direction, co
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
     const isEnToUa = direction === 'en-to-ua';
     // Output language is the target
-    utterance.lang = isEnToUa ? 'uk-UA' : 'en-US';
+    utterance.lang = isEnToUa ? 'uk-UA' : partnerTtsLang;
     utterance.rate = 0.9;
     utterance.pitch = 1;
 
     // Try to find a matching voice
     const voices = synth.getVoices();
-    const targetLang = isEnToUa ? 'uk' : 'en';
+    const targetLang = isEnToUa ? 'uk' : partnerVoicePrefix;
     const voice = voices.find(v => v.lang.startsWith(targetLang));
     if (voice) utterance.voice = voice;
 

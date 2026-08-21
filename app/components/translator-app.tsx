@@ -14,6 +14,11 @@ import ImageTranslateMode from './image-translate-mode';
 import SettingsPanel from './settings-panel';
 import HistoryPanel from './history-panel';
 import OnboardingTour from './onboarding-tour';
+import { InstallPrompt } from './install-guide';
+import WhatsNewDialog from './whats-new-dialog';
+import ReportDisclaimer from './report-disclaimer';
+import { APP_VERSION, WHATS_NEW_OVERRIDE, isNewerFeatureRelease } from '@/lib/changelog';
+import ReportDialog from './report-dialog';
 import { useI18n } from '@/components/i18n-provider';
 import { UI_LANGS, UiLang } from '@/lib/i18n';
 
@@ -21,8 +26,14 @@ export type TranslationMode = 'panel' | 'chat' | 'conversation' | 'image';
 
 export interface TranslationSettings {
   dialect: string;
+  // The non-Ukrainian translation language ('english' | 'spanish'). This is
+  // decoupled from the app's UI language — the interface language never locks
+  // which languages you can translate between.
+  partnerLang: string;
   englishDialect: string;
   englishVarietyChosen: boolean;
+  // Selected Spanish variety, used when partnerLang === 'spanish'.
+  spanishDialect: string;
   speakerGender: string;
   addresseeGender: string;
   formality: string;
@@ -37,12 +48,22 @@ export interface TranslationSettings {
   enterKeyChat: string;
   // Insert culturally appropriate emojis into the translation output.
   emojis: boolean;
+  // Which third-party tool to use for "Verify Translation" back-translation.
+  verifyProvider: string;
+  // True once the user has explicitly picked a verify provider in Settings.
+  // Lets us apply a new default (DeepL) to people who never chose one, without
+  // ever overwriting a deliberate selection.
+  verifyProviderChosen: boolean;
+  // Custom URL template when verifyProvider === 'custom'.
+  customVerifyUrl: string;
 }
 
 const DEFAULT_SETTINGS: TranslationSettings = {
   dialect: 'western',
+  partnerLang: 'english',
   englishDialect: 'american',
   englishVarietyChosen: false,
+  spanishDialect: 'latam',
   speakerGender: 'male',
   addresseeGender: 'female',
   formality: 'informal',
@@ -52,6 +73,9 @@ const DEFAULT_SETTINGS: TranslationSettings = {
   enterKeyTranslate: 'mod',
   enterKeyChat: 'mod',
   emojis: false,
+  verifyProvider: 'deepl',
+  verifyProviderChosen: false,
+  customVerifyUrl: '',
 };
 
 const AUTH_REQUIRED_MODES: TranslationMode[] = ['chat', 'conversation', 'image'];
@@ -70,12 +94,88 @@ export default function TranslatorApp() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
+  // "What's New" feature-release modal (mini tour of the latest features).
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
   // Live Conversation mode is experimental and only exposed on the
   // development/testing host (the abacusai.app URL). Default false so SSR and
   // the initial client render agree; the effect flips it on the dev host.
   const [liveEnabled, setLiveEnabled] = useState(false);
+  // Content-report flow: dialog visibility, the captured screenshot (data URL)
+  // and whether a capture is currently in progress.
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportShot, setReportShot] = useState<string | null>(null);
+  const [capturingShot, setCapturingShot] = useState(false);
+  const mainRef = useRef<HTMLElement | null>(null);
 
   const isAuthenticated = status === 'authenticated';
+
+  // The AI disclaimer + report CTA is shown only on the AI-powered screens.
+  const showDisclaimer = mode === 'panel' || mode === 'chat' || mode === 'image';
+
+  // On mobile, the Translate (two-panel) screen flows at the document level so
+  // the panes can grow with content and push the disclaimer + footer below the
+  // fold (the page scrolls). Every other screen — and the welcome splash —
+  // stays viewport-bounded with its own internal scroll. Desktop is unchanged.
+  const panelFlow = mode === 'panel' && !showWelcome;
+
+  // Open the report dialog. Before showing the modal we attempt to capture a
+  // screenshot of the current screen so the user can optionally attach it.
+  const handleOpenReport = useCallback(async () => {
+    setReportShot(null);
+    setCapturingShot(true);
+    setReportOpen(true);
+    try {
+      const el = mainRef.current || (typeof document !== 'undefined' ? document.body : null);
+      if (el) {
+        // The <main> element itself is transparent (the page background lives on
+        // a parent), so walk up to find a concrete colour and avoid a black
+        // JPEG backdrop. Works for both light and dark themes.
+        let bg = '#ffffff';
+        try {
+          let node: HTMLElement | null = el;
+          while (node) {
+            const c = getComputedStyle(node).backgroundColor;
+            if (c && c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') {
+              bg = c;
+              break;
+            }
+            node = node.parentElement;
+          }
+        } catch {
+          // keep default
+        }
+        const { default: html2canvas } = await import('html2canvas');
+        const canvas = await html2canvas(el, {
+          backgroundColor: bg,
+          scale: Math.min(window.devicePixelRatio || 1, 2),
+          logging: false,
+          useCORS: true,
+          windowWidth: el.scrollWidth,
+          windowHeight: el.scrollHeight,
+        });
+        // Downscale very large captures so the payload stays reasonable.
+        const maxW = 1200;
+        let out: HTMLCanvasElement = canvas;
+        if (canvas.width > maxW) {
+          const ratio = maxW / canvas.width;
+          const scaled = document.createElement('canvas');
+          scaled.width = maxW;
+          scaled.height = Math.round(canvas.height * ratio);
+          const ctx = scaled.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(canvas, 0, 0, scaled.width, scaled.height);
+            out = scaled;
+          }
+        }
+        setReportShot(out.toDataURL('image/jpeg', 0.7));
+      }
+    } catch {
+      // Screenshot is best-effort; the user can still submit a report without it.
+      setReportShot(null);
+    } finally {
+      setCapturingShot(false);
+    }
+  }, []);
 
   // Refs for account-level settings sync. When signed in, the account is the
   // source of truth so preferences follow the user across devices/browsers.
@@ -85,18 +185,28 @@ export default function TranslatorApp() {
 
   useEffect(() => {
     setMounted(true);
-    try {
-      if (typeof window !== 'undefined' && window.location.hostname.endsWith('abacusai.app')) {
-        setLiveEnabled(true);
-      }
-    } catch {
-      // ignore
-    }
+    // Live Conversation ("Talk") mode is decommissioned pending further
+    // development. It stays fully hidden everywhere — to bring it back, restore
+    // the host-based enablement below.
+    // try {
+    //   if (typeof window !== 'undefined' && window.location.hostname.endsWith('abacusai.app')) {
+    //     setLiveEnabled(true);
+    //   }
+    // } catch {
+    //   // ignore
+    // }
     try {
       const saved = localStorage?.getItem?.('ua-us-settings');
       if (saved) {
-        const parsed = JSON.parse(saved);
-        setSettings((prev: TranslationSettings) => ({ ...(prev ?? {}), ...(parsed ?? {}) }));
+        const parsed = JSON.parse(saved) ?? {};
+        // One-time default migration: the verify provider used to default to
+        // Google. Anyone who never explicitly picked a provider should move to
+        // the new DeepL default. A deliberate choice (verifyProviderChosen) is
+        // always preserved.
+        if (!parsed.verifyProviderChosen) {
+          parsed.verifyProvider = 'deepl';
+        }
+        setSettings((prev: TranslationSettings) => ({ ...(prev ?? {}), ...parsed }));
       }
       const welcomed = localStorage?.getItem?.('nightingale-welcomed');
       if (welcomed === 'true') {
@@ -106,6 +216,42 @@ export default function TranslatorApp() {
       const tourDone = localStorage?.getItem?.('nightingale-tour-done');
       if (tourDone !== 'true') {
         setTimeout(() => setTourOpen(true), 600);
+      }
+      // "What's New" modal. By default it fires only on a FEATURE release
+      // (minor/major bump). A manual override (WHATS_NEW_OVERRIDE) can force it
+      // on a flagged patch release and pin which version it announces. And a
+      // ?whatsnew=1 URL param force-opens it on demand for previewing. Never
+      // piled on top of the first-visit welcome + guided tour.
+      const params =
+        typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const forcePreview = params?.get?.('whatsnew') === '1';
+      const override = WHATS_NEW_OVERRIDE;
+      const lastSeenVer = localStorage?.getItem?.('nightingale-last-seen-version');
+
+      if (forcePreview) {
+        // On-demand preview: always show, don't touch stored state.
+        setTimeout(() => setShowWhatsNew(true), 400);
+      } else if (override?.force) {
+        // Manual override: show to anyone who hasn't dismissed THIS flagged
+        // announcement (tracked by its own key so it re-shows even for users
+        // who already saw an earlier modal for the same version number).
+        const forcedSeen = localStorage?.getItem?.('nightingale-whatsnew-forced');
+        if (forcedSeen !== override.featureVersion) {
+          if (welcomed === 'true') {
+            setTimeout(() => setShowWhatsNew(true), 750);
+          } else {
+            localStorage?.setItem?.('nightingale-whatsnew-forced', override.featureVersion);
+            localStorage?.setItem?.('nightingale-last-seen-version', APP_VERSION);
+          }
+        }
+      } else if (!lastSeenVer) {
+        if (welcomed === 'true') {
+          setTimeout(() => setShowWhatsNew(true), 750);
+        } else {
+          localStorage?.setItem?.('nightingale-last-seen-version', APP_VERSION);
+        }
+      } else if (isNewerFeatureRelease(APP_VERSION, lastSeenVer)) {
+        setTimeout(() => setShowWhatsNew(true), 750);
       }
     } catch {
       // ignore
@@ -144,8 +290,10 @@ export default function TranslatorApp() {
           if (validLang) setLang(s.uiLang as UiLang);
           lastSavedRef.current = JSON.stringify({
             dialect: s.dialect ?? DEFAULT_SETTINGS.dialect,
+            partnerLang: s.partnerLang ?? DEFAULT_SETTINGS.partnerLang,
             englishDialect: s.englishDialect ?? DEFAULT_SETTINGS.englishDialect,
             englishVarietyChosen: typeof s.englishVarietyChosen === 'boolean' ? s.englishVarietyChosen : DEFAULT_SETTINGS.englishVarietyChosen,
+            spanishDialect: s.spanishDialect ?? DEFAULT_SETTINGS.spanishDialect,
             speakerGender: s.speakerGender ?? DEFAULT_SETTINGS.speakerGender,
             addresseeGender: s.addresseeGender ?? DEFAULT_SETTINGS.addresseeGender,
             formality: s.formality ?? DEFAULT_SETTINGS.formality,
@@ -175,8 +323,10 @@ export default function TranslatorApp() {
     if (status !== 'authenticated' || !accountHydratedRef.current) return;
     const blob = JSON.stringify({
       dialect: settings.dialect,
+      partnerLang: settings.partnerLang,
       englishDialect: settings.englishDialect,
       englishVarietyChosen: settings.englishVarietyChosen,
+      spanishDialect: settings.spanishDialect,
       speakerGender: settings.speakerGender,
       addresseeGender: settings.addresseeGender,
       formality: settings.formality,
@@ -274,7 +424,7 @@ export default function TranslatorApp() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className={`bg-background flex flex-col ${panelFlow ? 'md:flex-1 md:min-h-0' : 'h-[100dvh] md:h-auto md:flex-1 md:min-h-0'}`}>
       <Header
         mode={mode}
         onModeChange={handleModeChange}
@@ -287,7 +437,7 @@ export default function TranslatorApp() {
         onOpenProfile={() => { setSettingsScrollTarget('profile'); setSettingsOpen(true); }}
       />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className={`flex md:overflow-hidden ${panelFlow ? 'md:flex-1 md:min-h-0' : 'flex-1 min-h-0'}`}>
         <SettingsPanel
           open={settingsOpen}
           settings={settings}
@@ -297,11 +447,12 @@ export default function TranslatorApp() {
           onScrollHandled={() => setSettingsScrollTarget(null)}
         />
 
-        <main className="flex-1 overflow-auto pb-16 md:pb-0">
-          {/* Welcome Splash */}
-          {showWelcome && mode === 'panel' && (
-            <div className="hero-gradient">
-              <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        <main ref={mainRef} className={`flex flex-col min-w-0 md:overflow-hidden ${panelFlow ? 'md:flex-1 md:min-h-0' : 'flex-1 min-h-0'}`}>
+          <div className={panelFlow ? 'md:flex-1 md:min-h-0 md:overflow-auto' : 'flex-1 min-h-0 overflow-auto'}>
+          {/* Welcome Splash — full tab-area overlay, dismissible */}
+          {showWelcome && mode === 'panel' ? (
+            <div className="hero-gradient min-h-full flex items-center">
+              <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
                 <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
                   {/* Animated Portrait */}
                   <div className="shrink-0">
@@ -326,7 +477,9 @@ export default function TranslatorApp() {
                       </h2>
                     </div>
                     <p className="text-muted-foreground leading-relaxed max-w-lg">
-                      {t('welcome.intro', { english: t(`welcome.english.${settings.englishVarietyChosen ? settings.englishDialect : 'none'}`) })}
+                      {t('welcome.intro', { partner: settings.partnerLang === 'spanish'
+                        ? t(`welcome.spanish.${settings.spanishDialect ?? 'latam'}`)
+                        : t(`welcome.english.${settings.englishVarietyChosen ? settings.englishDialect : 'none'}`) })}
                     </p>
                     {!isAuthenticated && (
                       <p className="text-muted-foreground leading-relaxed max-w-lg text-sm">
@@ -391,9 +544,7 @@ export default function TranslatorApp() {
                 </div>
               </div>
             </div>
-          )}
-
-          {mode === 'panel' ? (
+          ) : mode === 'panel' ? (
             <TwoPanelMode
               settings={settings}
               onToggleDirection={toggleDirection}
@@ -404,20 +555,35 @@ export default function TranslatorApp() {
             <ChatMode
               speakerGender={settings.speakerGender}
               englishDialect={settings.englishDialect}
+              partnerLang={settings.partnerLang}
+              spanishDialect={settings.spanishDialect}
               emojis={settings.emojis}
               enterKeyChat={settings.enterKeyChat}
+              direction={settings.direction}
+              verifyProvider={settings.verifyProvider}
+              customVerifyUrl={settings.customVerifyUrl}
             />
           ) : mode === 'conversation' && liveEnabled ? (
             <LiveConversationMode settings={settings} />
           ) : mode === 'image' ? (
             <ImageTranslateMode settings={settings} />
           ) : null}
+          </div>
+          {showDisclaimer && <ReportDisclaimer onReport={handleOpenReport} />}
         </main>
       </div>
 
       <HistoryPanel
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
+      />
+
+      <ReportDialog
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        mode={mode}
+        screenshot={reportShot}
+        capturing={capturingShot}
       />
 
       <HelpPanel
@@ -434,6 +600,28 @@ export default function TranslatorApp() {
         liveEnabled={liveEnabled}
         onComplete={() => setSettingsOpen(true)}
       />
+
+      <WhatsNewDialog
+        open={showWhatsNew}
+        onClose={() => {
+          setShowWhatsNew(false);
+          try {
+            localStorage?.setItem?.('nightingale-last-seen-version', APP_VERSION);
+            if (WHATS_NEW_OVERRIDE?.force) {
+              localStorage?.setItem?.(
+                'nightingale-whatsnew-forced',
+                WHATS_NEW_OVERRIDE.featureVersion,
+              );
+            }
+          } catch {}
+        }}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
+
+      {/* First-visit "install as an app" hint. Fires once per device, only after
+          the welcome splash, onboarding tour, and What's New modal are out of
+          the way, and never when already running as an installed app. */}
+      <InstallPrompt active={mounted && !showWelcome && !tourOpen && !showWhatsNew} />
     </div>
   );
 }

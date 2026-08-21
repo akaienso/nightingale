@@ -2,12 +2,15 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, Upload, FileText, Image as ImageIcon, Loader2, Info, X, Copy, Check, AlertCircle } from 'lucide-react';
+import VerifyTranslationIcon from './verify-translation-icon';
+import { buildVerifyUrl, VerifyProvider } from '@/lib/verify-translation';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import type { TranslationSettings } from './translator-app';
 import { useI18n } from '@/components/i18n-provider';
-import { englishFlag } from '@/lib/utils';
+import { partnerFlag } from '@/lib/utils';
+import SkipNavPill from './skip-nav-pill';
 
 interface ImageTranslateModeProps {
   settings: TranslationSettings;
@@ -27,12 +30,36 @@ export default function ImageTranslateMode({ settings }: ImageTranslateModeProps
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const imgBlockRef = useRef<HTMLDivElement | null>(null);
+  const transBlockRef = useRef<HTMLDivElement | null>(null);
+
+  const getImgStops = useCallback(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return { up: [], down: [] };
+    const sTop = scroller.getBoundingClientRect().top;
+    const clientH = scroller.clientHeight;
+    const up: number[] = [];
+    const down: number[] = [];
+    for (const block of [imgBlockRef.current, transBlockRef.current]) {
+      if (!block) continue;
+      const r = block.getBoundingClientRect();
+      const top = r.top - sTop + scroller.scrollTop;
+      const bottom = r.bottom - sTop + scroller.scrollTop;
+      up.push(Math.max(0, top));
+      down.push(Math.max(0, bottom - clientH));
+    }
+    const clean = (arr: number[]) => Array.from(new Set(arr.map((n) => Math.round(n)))).sort((a, b) => a - b);
+    return { up: clean(up), down: clean(down) };
+  }, []);
 
   const [imgDirection, setImgDirection] = useState<'en-to-ua' | 'ua-to-en'>(
     (settings?.direction as 'en-to-ua' | 'ua-to-en') ?? 'en-to-ua'
   );
-  const engFlag = englishFlag(settings?.englishDialect);
+  const isSpanish = (settings?.partnerLang ?? 'english') === 'spanish';
+  const engFlag = partnerFlag(settings?.partnerLang, settings?.englishDialect, settings?.spanishDialect);
   const uaFlag = '🇺🇦';
+  const partnerLabel = isSpanish ? t('common.spanish') : t('common.english');
 
   // Cleanup camera on unmount
   useEffect(() => {
@@ -127,6 +154,8 @@ export default function ImageTranslateMode({ settings }: ImageTranslateModeProps
           direction: imgDirection,
           dialect: settings.dialect,
           englishDialect: settings.englishDialect,
+          partnerLang: settings.partnerLang,
+          spanishDialect: settings.spanishDialect,
           formality: settings.formality,
           outputFormat: settings.outputFormat,
           speakerGender: settings.speakerGender,
@@ -179,7 +208,8 @@ export default function ImageTranslateMode({ settings }: ImageTranslateModeProps
       <div className="flex flex-col items-center gap-2 py-3 px-4 border-b border-border/50 bg-muted/30">
         <div className="flex items-center gap-3">
           <div className="relative w-5 h-5 rounded-full overflow-hidden">
-            <NextImage src="/nightingale-icon.png" alt="Nightingale" fill className="object-contain" sizes="20px" />
+            <NextImage src="/nightingale-icon.png" alt="Nightingale" fill className="object-contain dark:hidden" sizes="20px" />
+            <NextImage src="/nightingale-icon-light.png" alt="Nightingale" fill className="object-contain hidden dark:block" sizes="20px" />
           </div>
           <span className="font-medium text-sm">{t('image.title')}</span>
         </div>
@@ -190,20 +220,20 @@ export default function ImageTranslateMode({ settings }: ImageTranslateModeProps
             onClick={() => setImgDirection('en-to-ua')}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${imgDirection === 'en-to-ua' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            {engFlag} {t('common.english')} → {uaFlag} {t('common.ukrainian')}
+            {engFlag} {partnerLabel} → {uaFlag} {t('common.ukrainian')}
           </button>
           <button
             type="button"
             onClick={() => setImgDirection('ua-to-en')}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${imgDirection === 'ua-to-en' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            {uaFlag} {t('common.ukrainian')} → {engFlag} {t('common.english')}
+            {uaFlag} {t('common.ukrainian')} → {engFlag} {partnerLabel}
           </button>
         </div>
         <p className="text-[11px] text-muted-foreground">{t('image.subtitle')}</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div ref={scrollerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Camera View */}
         {cameraActive && (
           <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
@@ -280,7 +310,7 @@ export default function ImageTranslateMode({ settings }: ImageTranslateModeProps
 
         {/* Image Preview */}
         {imagePreview && !cameraActive && (
-          <div className="space-y-4">
+          <div ref={imgBlockRef} className="space-y-4">
             <div className="relative rounded-xl overflow-hidden border border-border/50 bg-muted/20">
               <img
                 src={imagePreview}
@@ -340,18 +370,39 @@ export default function ImageTranslateMode({ settings }: ImageTranslateModeProps
             </div>
 
             {/* Translation */}
-            <div className="rounded-xl border border-accent/20 overflow-hidden">
+            <div ref={transBlockRef} className="rounded-xl border border-accent/20 overflow-hidden">
               <div className="flex items-center justify-between px-4 py-2 bg-accent/10 border-b border-accent/20">
                 <span className="text-xs font-medium text-accent uppercase tracking-wider">{t('image.translation')}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleCopy(result.translation)}
-                  className="h-7 text-xs gap-1"
-                >
-                  {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                  {copied ? t('common.copied') : t('common.copy')}
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const url = buildVerifyUrl(
+                        result.translation,
+                        settings?.direction ?? 'en-to-ua',
+                        settings?.partnerLang ?? 'english',
+                        (settings?.verifyProvider ?? 'deepl') as VerifyProvider,
+                        settings?.customVerifyUrl,
+                      );
+                      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                    }}
+                    className="h-7 text-xs gap-1 text-primary hover:bg-primary hover:text-primary-foreground"
+                    title={t('verify.tooltip')}
+                  >
+                    <VerifyTranslationIcon className="w-3.5 h-3.5" />
+                    {t('verify.tooltip')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopy(result.translation)}
+                    className="h-7 text-xs gap-1"
+                  >
+                    {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                    {copied ? t('common.copied') : t('common.copy')}
+                  </Button>
+                </div>
               </div>
               <div className="p-4">
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{result.translation}</p>
@@ -371,6 +422,10 @@ export default function ImageTranslateMode({ settings }: ImageTranslateModeProps
           </div>
         )}
       </div>
+
+      {result && (
+        <SkipNavPill getStops={getImgStops} scrollTargetRef={scrollerRef} />
+      )}
 
       {/* Hidden file inputs */}
       <input

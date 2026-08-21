@@ -53,6 +53,35 @@ export async function getFileUrl(
   return getSignedUrl(s3, command, { expiresIn: 3600 });
 }
 
+/**
+ * Server-side upload of a raw buffer to public storage. Used for flows where the
+ * client can't use a presigned URL (e.g. anonymous users submitting a report
+ * screenshot). Returns the public URL of the stored object.
+ */
+export async function uploadPublicBuffer(
+  buffer: Buffer,
+  contentType: string,
+  fileName: string
+) {
+  const s3 = createS3Client();
+  const { bucketName, folderPrefix } = getBucketConfig();
+  const cloud_storage_path = `${folderPrefix}public/reports/${Date.now()}-${fileName}`;
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucketName,
+      Key: cloud_storage_path,
+      Body: buffer,
+      ContentType: contentType,
+    })
+  );
+
+  const region = process.env.AWS_REGION || 'us-east-1';
+  const encodedKey = cloud_storage_path.split('/').map(encodeURIComponent).join('/');
+  const url = `https://${bucketName}.s3.${region}.amazonaws.com/${encodedKey}`;
+  return { cloud_storage_path, url };
+}
+
 export async function deleteFile(cloud_storage_path: string) {
   const s3 = createS3Client();
   const { bucketName } = getBucketConfig();

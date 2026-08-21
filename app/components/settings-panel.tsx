@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, MapPin, Globe, User, Users, BookOpen, FileText, Languages, Trash2, Shield, Loader2, UserCircle, Check, Smile, MessageSquare, CornerDownLeft, Mail, KeyRound, Link2 } from 'lucide-react';
+import { X, MapPin, Globe, User, Users, BookOpen, FileText, Languages, Trash2, Shield, Loader2, UserCircle, Check, Smile, MessageSquare, CornerDownLeft, Mail, KeyRound, Link2, ExternalLink } from 'lucide-react';
+import VerifyTranslationIcon from './verify-translation-icon';
+import { VERIFY_PROVIDERS, VerifyProvider } from '@/lib/verify-translation';
 import type { TranslationSettings } from './translator-app';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -258,12 +260,12 @@ export default function SettingsPanel({ open, settings, onUpdate, onClose, scrol
     <>
       {/* Mobile overlay */}
       <div
-        className="fixed inset-0 bg-black/30 z-30 lg:hidden"
+        className="fixed inset-0 bg-black/30 z-30 md:hidden"
         onClick={onClose}
       />
       <aside
-        className={`fixed right-0 top-14 sm:top-16 bottom-0 w-72 bg-card border-l border-border z-40 overflow-y-auto
-          lg:static lg:top-0 lg:z-auto lg:border-l
+        className={`fixed left-0 top-14 sm:top-16 bottom-0 w-72 bg-card border-r border-border z-40 overflow-y-auto
+          md:static md:top-0 md:z-auto md:border-r md:border-l-0
           transition-transform duration-normal`}
         style={{ boxShadow: 'var(--shadow-lg)' }}
       >
@@ -295,19 +297,47 @@ export default function SettingsPanel({ open, settings, onUpdate, onClose, scrol
             />
           </SettingGroup>
 
-          <SettingGroup icon={Globe} label={t('settings.englishDialect')}>
+          <SettingGroup icon={Languages} label={t('settings.partnerLang')}>
+            <p className="text-xs text-muted-foreground leading-relaxed -mt-1">{t('settings.partnerLang.desc')}</p>
             <OptionButtons
-              value={settings?.englishDialect ?? 'american'}
+              value={settings?.partnerLang ?? 'english'}
               options={[
-                { value: 'american', label: t('settings.englishDialect.american') },
-                { value: 'british', label: t('settings.englishDialect.british') },
-                { value: 'australian', label: t('settings.englishDialect.australian') },
-                { value: 'canadian', label: t('settings.englishDialect.canadian') },
-                { value: 'international', label: t('settings.englishDialect.international') },
+                { value: 'english', label: t('settings.partnerLang.english') },
+                { value: 'spanish', label: t('settings.partnerLang.spanish') },
               ]}
-              onChange={(v: string) => { onUpdate?.({ englishDialect: v, englishVarietyChosen: true }); notifySaved(); }}
+              onChange={(v: string) => { onUpdate?.({ partnerLang: v }); notifySaved(); }}
             />
           </SettingGroup>
+
+          {(settings?.partnerLang ?? 'english') === 'spanish' ? (
+            <SettingGroup icon={Globe} label={t('settings.spanishDialect')}>
+              <OptionButtons
+                value={settings?.spanishDialect ?? 'latam'}
+                options={[
+                  { value: 'latam', label: t('settings.spanishDialect.latam') },
+                  { value: 'castilian', label: t('settings.spanishDialect.castilian') },
+                  { value: 'mexican', label: t('settings.spanishDialect.mexican') },
+                  { value: 'rioplatense', label: t('settings.spanishDialect.rioplatense') },
+                  { value: 'colombian', label: t('settings.spanishDialect.colombian') },
+                ]}
+                onChange={(v: string) => { onUpdate?.({ spanishDialect: v }); notifySaved(); }}
+              />
+            </SettingGroup>
+          ) : (
+            <SettingGroup icon={Globe} label={t('settings.englishDialect')}>
+              <OptionButtons
+                value={settings?.englishDialect ?? 'american'}
+                options={[
+                  { value: 'american', label: t('settings.englishDialect.american') },
+                  { value: 'british', label: t('settings.englishDialect.british') },
+                  { value: 'australian', label: t('settings.englishDialect.australian') },
+                  { value: 'canadian', label: t('settings.englishDialect.canadian') },
+                  { value: 'international', label: t('settings.englishDialect.international') },
+                ]}
+                onChange={(v: string) => { onUpdate?.({ englishDialect: v, englishVarietyChosen: true }); notifySaved(); }}
+              />
+            </SettingGroup>
+          )}
 
           <SettingGroup icon={User} label={t('settings.speakerGender')}>
             <OptionButtons
@@ -378,6 +408,29 @@ export default function SettingsPanel({ open, settings, onUpdate, onClose, scrol
                 onCheckedChange={(c: boolean) => { onUpdate?.({ emojis: c }); notifySaved(); }}
               />
             </div>
+          </SettingGroup>
+
+          <SettingGroup icon={ExternalLink} label={t('settings.verifyProvider')}>
+            <p className="text-xs text-muted-foreground leading-relaxed -mt-1">{t('settings.verifyProvider.desc')}</p>
+            <OptionButtons
+              value={settings?.verifyProvider ?? 'deepl'}
+              options={VERIFY_PROVIDERS.map((p) => ({ value: p.value, label: p.label }))}
+              onChange={(v: string) => { onUpdate?.({ verifyProvider: v, verifyProviderChosen: true }); notifySaved(); }}
+            />
+            {(settings?.verifyProvider ?? 'deepl') === 'custom' && (
+              <div className="space-y-1 mt-1">
+                <label className="text-xs font-medium text-muted-foreground">{t('settings.verifyCustomUrl')}</label>
+                <input
+                  type="url"
+                  value={settings?.customVerifyUrl ?? ''}
+                  onChange={(e) => onUpdate?.({ customVerifyUrl: e.target.value })}
+                  onBlur={() => notifySaved()}
+                  placeholder={t('settings.verifyCustomUrl.placeholder')}
+                  className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <p className="text-[10px] text-muted-foreground">{t('settings.verifyCustomUrl.help')}</p>
+              </div>
+            )}
           </SettingGroup>
 
           <SettingGroup icon={CornerDownLeft} label={t('settings.enterKeyTranslate')}>

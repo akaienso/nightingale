@@ -1,0 +1,22 @@
+/**
+ * Duotone "Verify Translation" icon — follows currentColor so it adapts to
+ * the theme automatically (text-primary = #397A5B light / #52B37E dark).
+ */
+export default function VerifyTranslationIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="https://images.vexels.com/media/users/3/157893/isolated/preview/d6f4e679138673eb3223362c70ecf7ce-check-mark-tick-icon.png"
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+    >
+      <rect opacity="0.4" x="10" y="10" width="12" height="12" rx="2" fill="currentColor" />
+      <path d="M20 7L19.9999 4.99997C19.9999 4.44769 19.5522 4 18.9999 4L17 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3.99988 17V19C3.99988 19.5523 4.44759 20 4.99988 20H6.99988" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="10" y="10" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M13.5 19L15.5 13H16.5L18.5 19M14.5 17H17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 14H4C2.89543 14 2 13.1046 2 12V4C2 2.89543 2.89543 2 4 2H12C13.1046 2 14 2.89543 14 4V10" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M8.50069 9.99999C8.50069 9.99999 7.50069 9.49999 6.50069 7.99999M9.5 6H11M9.5 6C9.16667 7 8 9.4 6 11M9.5 6H8M5 6H8M8 6V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

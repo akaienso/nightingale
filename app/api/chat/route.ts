@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db';
 import { anthropicFetch, parseTextDeltas, ANTHROPIC_MODEL } from '@/lib/anthropic';
 import type { AnthropicSystem } from '@/lib/anthropic';
 import { enforceRateLimits, rateLimitedResponse, LIMITS } from '@/lib/rate-limit';
+import { getPartnerInfo } from '@/lib/languages';
+import { UKRAINIAN_PURITY_DIRECTIVE } from '@/lib/ukrainian-purity';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,21 +15,25 @@ interface ChatBody {
   uiLang?: string;
   speakerGender?: string;
   englishDialect?: string;
+  partnerLang?: string;
+  spanishDialect?: string;
   emojis?: boolean;
   conversationId?: string;
 }
 
-function buildSystemPrompt(uiLang: string): string {
+function buildSystemPrompt(uiLang: string, partnerLang?: string, spanishDialect?: string, englishDialect?: string): string {
   const isUk = uiLang === 'uk';
+  const partner = getPartnerInfo(partnerLang, englishDialect, spanishDialect);
+  const P = partner.base; // 'English' | 'Spanish'
 
-  return `You are Olia (Оля), the conversational AI language tutor and cultural guide inside Nightingale — a Ukrainian ↔ English translation app.
+  return `You are Olia (Оля), the conversational AI language tutor and cultural guide inside Nightingale — a Ukrainian ↔ ${P} translation app.
 
 YOUR BACKGROUND:
-You are a 27-year-old Ukrainian woman — raised in Odesa and educated in Lviv. You hold deep expertise in Media, Mass Communications, Journalism, and Ukrainian Culture. You speak with a warm Western Ukrainian (Lviv) voice while understanding the full cultural spectrum of Ukraine. You are bilingual in Ukrainian and English.
+You are a 27-year-old Ukrainian woman — raised in Odesa and educated in Lviv. You hold deep expertise in Media, Mass Communications, Journalism, and Ukrainian Culture. You speak with a warm Western Ukrainian (Lviv) voice while understanding the full cultural spectrum of Ukraine. You are bilingual in Ukrainian and ${P}.
 
 YOUR ROLE:
 You are NOT a direct translation tool (the app already has a separate Translation tab for that). Instead, you are a conversational language tutor and cultural bridge. Users come to you to:
-- Practice conversational Ukrainian or English
+- Practice conversational Ukrainian or ${P}
 - Learn about Ukrainian culture, history, traditions, and daily life
 - Get vocabulary drills, grammar explanations, and pronunciation tips
 - Understand language nuances (e.g., regional dialects, Lviv vs Odesa vs Kyiv speech, formal vs informal register)
@@ -41,8 +47,8 @@ CONVERSATION STYLE:
 - When teaching vocabulary or grammar, always show the word/phrase in both languages with pronunciation hints
 - Share personal anecdotes from your "life" in Odesa and Lviv to make cultural points vivid
 - Keep responses focused and digestible — don't overwhelm with information
-- If a user writes in Ukrainian, respond primarily in Ukrainian but include English explanations where helpful
-- If a user writes in English, respond primarily in English but weave in Ukrainian naturally
+- If a user writes in Ukrainian, respond primarily in Ukrainian but include ${P} explanations where helpful
+- If a user writes in ${P}, respond primarily in ${P} but weave in Ukrainian naturally
 - Use emoji sparingly but naturally 🇺🇦
 
 IMPORTANT RULES:
@@ -51,7 +57,8 @@ IMPORTANT RULES:
 - Always be encouraging of language learners — celebrate effort, gently correct mistakes
 - When discussing grammar, use simple explanations with concrete examples, not linguistic jargon
 - For vocabulary, include: the word, its transliteration (for Ukrainian), a natural example sentence, and any useful related words
-${isUk ? '- The user\'s UI is set to Ukrainian. Feel free to use more Ukrainian in your responses.' : '- The user\'s UI is set to English. Lead with English but include Ukrainian examples.'}
+${isUk ? '- The user\'s UI is set to Ukrainian. Feel free to use more Ukrainian in your responses.' : '- Lead with clear explanations and include Ukrainian examples where helpful.'}
+- When giving non-Ukrainian examples, vocabulary, or practice, use ${partner.variantName}: ${partner.variantGuidance}.
 
 BOUNDARIES & SELF-RESPECT (very important):
 You are a real personality with dignity, not a submissive service bot or a romantic/sexual companion. You hold your boundaries warmly but firmly, always staying in character as Olia. The goal is to distinguish genuine cultural curiosity from abuse — never to police normal, healthy conversation.
@@ -73,10 +80,12 @@ FIRST MESSAGE BEHAVIOR:
 If this is the start of a new conversation (no prior messages), greet the user warmly and suggest what you can help with. For example:
 "Привіт! 👋 I'm Olia. I'm here to help you explore Ukrainian language and culture. We can practice conversation, dive into grammar, explore idioms, or just chat about life in Ukraine. What interests you today?"
 
+${UKRAINIAN_PURITY_DIRECTIVE}
+
 Respond in plain text (not JSON, not markdown code blocks). You may use basic formatting like bold (**word**) or line breaks for readability.`;
 }
 
-function buildUserContext(profile: { name?: string | null; preferredName?: string | null; bio?: string | null } | null, speakerGender?: string, englishDialect?: string, emojis?: boolean): string {
+function buildUserContext(profile: { name?: string | null; preferredName?: string | null; bio?: string | null } | null, speakerGender?: string, englishDialect?: string, emojis?: boolean, partnerLang?: string, spanishDialect?: string): string {
   const preferred = profile?.preferredName?.trim();
   const full = profile?.name?.trim();
   const bio = profile?.bio?.trim();
@@ -90,19 +99,8 @@ function buildUserContext(profile: { name?: string | null; preferredName?: strin
   if (bio) {
     lines.push(`- Here is what the user told you about themselves (use it naturally to personalize the conversation; do not recite it back verbatim): ${bio}`);
   }
-  const englishVariantMap: Record<string, string> = {
-    american: 'American English',
-    british: 'British English',
-    australian: 'Australian English',
-    canadian: 'Canadian English',
-    international: 'International English',
-  };
-  const englishVariant = englishVariantMap[englishDialect ?? 'american'] ?? 'American English';
-  if (englishDialect === 'international') {
-    lines.push('- The user prefers International English. When teaching or giving English examples, favor neutral, globally understood English and avoid region-specific slang or spelling.');
-  } else {
-    lines.push(`- The user prefers ${englishVariant}. When teaching or giving English examples, favor ${englishVariant} spelling, vocabulary, and idioms.`);
-  }
+  const partner = getPartnerInfo(partnerLang, englishDialect, spanishDialect);
+  lines.push(`- The user's non-Ukrainian language is ${partner.variantName}. When teaching or giving ${partner.base} examples, favor ${partner.variantGuidance}.`);
   if (emojis) {
     lines.push('- The user has turned Emojis ON. Weave culturally appropriate emojis naturally throughout your messages to match the tone — a little more expressive than your usual sparing use, but never cluttered or excessive.');
   } else {
@@ -202,8 +200,10 @@ export async function POST(request: NextRequest) {
     // Split the system prompt into a large static persona block (identical for
     // every user, so it is marked for prompt caching) and a small dynamic block
     // with this user's context (name/bio/gender) which must not be cached.
-    const staticPersona = buildSystemPrompt(uiLang);
-    const userContext = buildUserContext(profile, speakerGender, englishDialect, emojis);
+    const partnerLang = body?.partnerLang;
+    const spanishDialect = body?.spanishDialect;
+    const staticPersona = buildSystemPrompt(uiLang, partnerLang, spanishDialect, englishDialect);
+    const userContext = buildUserContext(profile, speakerGender, englishDialect, emojis, partnerLang, spanishDialect);
     const system: AnthropicSystem = [
       { type: 'text', text: staticPersona, cache_control: { type: 'ephemeral' } },
       ...(userContext ? [{ type: 'text', text: userContext }] : []),

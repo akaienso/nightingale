@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { anthropicFetch, parseTextDeltas, extractJson, HAIKU_MODEL } from '@/lib/anthropic';
 import { enforceRateLimits, rateLimitedResponse, getClientIp, LIMITS } from '@/lib/rate-limit';
+import { getPartnerInfo } from '@/lib/languages';
+import { UKRAINIAN_PURITY_DIRECTIVE } from '@/lib/ukrainian-purity';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +13,8 @@ interface TranslateBody {
   direction?: string;
   dialect?: string;
   englishDialect?: string;
+  partnerLang?: string;
+  spanishDialect?: string;
   speakerGender?: string;
   addresseeGender?: string;
   formality?: string;
@@ -26,6 +30,8 @@ function buildSystemPrompt(body: TranslateBody): string {
   const direction = body?.direction ?? 'en-to-ua';
   const dialect = body?.dialect ?? 'western';
   const englishDialect = body?.englishDialect ?? 'american';
+  const partnerLang = body?.partnerLang ?? 'english';
+  const spanishDialect = body?.spanishDialect ?? 'latam';
   const speakerGender = body?.speakerGender ?? 'male';
   const addresseeGender = body?.addresseeGender ?? 'female';
   const formality = body?.formality ?? 'informal';
@@ -33,26 +39,22 @@ function buildSystemPrompt(body: TranslateBody): string {
   const messageFormat = body?.messageFormat ?? 'general';
   const emojis = body?.emojis === true;
   const mode = body?.mode ?? 'panel';
-  const uiLang = body?.uiLang === 'uk' ? 'uk' : 'en';
+  const uiLang = body?.uiLang === 'uk' ? 'uk' : body?.uiLang === 'es' ? 'es' : 'en';
   const noteLangLine = uiLang === 'uk'
     ? '- The "culturalNote" field MUST ALWAYS be written in UKRAINIAN, regardless of translation direction. Never write the cultural note in English.'
+    : uiLang === 'es'
+    ? '- The "culturalNote" field MUST ALWAYS be written in SPANISH, regardless of translation direction. Never write the cultural note in English or Ukrainian.'
     : '- The "culturalNote" field MUST ALWAYS be written in ENGLISH, regardless of translation direction. Never write the cultural note in Ukrainian.';
 
-  const englishVariantMap: Record<string, string> = {
-    american: 'American English',
-    british: 'British English',
-    australian: 'Australian English',
-    canadian: 'Canadian English',
-    international: 'International English',
-  };
-  const englishVariant = englishVariantMap[englishDialect] ?? 'American English';
-  const englishVariantGuidance = englishDialect === 'international'
-    ? 'a neutral, globally understood standard English — avoid region-specific slang, spelling, or idioms that mark it as tied to one country'
-    : `authentic ${englishVariant}: use its native spelling, vocabulary, idioms, and expressions`;
+  // Partner language = the non-Ukrainian side of the translation (English or Spanish),
+  // decoupled from the UI language.
+  const partner = getPartnerInfo(partnerLang, englishDialect, spanishDialect);
+  const partnerVariant = partner.variantName;
+  const partnerVariantGuidance = partner.variantGuidance;
 
   const directionText = direction === 'ua-to-en'
-    ? `Ukrainian to ${englishVariant}`
-    : `${englishVariant} to Ukrainian`;
+    ? `Ukrainian to ${partnerVariant}`
+    : `${partnerVariant} to Ukrainian`;
 
   const dialectMap: Record<string, string> = {
     western: 'Western Ukraine / Lviv dialect',
@@ -100,16 +102,19 @@ When responding in chat mode:
 `;
 
   return `${oliaPersona}
+${UKRAINIAN_PURITY_DIRECTIVE}
+
 CRITICAL TRANSLATION RULES:
-- Produce NATURAL, COLLOQUIAL speech — NOT literal, robotic, or textbook translation.
-- Preserve the emotional tone, humor, sarcasm, and cultural nuance of the original.
-- Use modern slang, internet language, and natural speech patterns appropriate for the target language.
+- Produce NATURAL, EVERYDAY speech — the way a real native speaker would actually say it in ordinary conversation. Not literal, robotic, or textbook; but equally NOT forced, exaggerated, or overly slangy.
+- MATCH THE REGISTER of the original. Translate a plain, neutral sentence into a plain, neutral sentence. Only reach for slang, idioms, or informal turns of phrase when they are genuinely present in the source, OR when they are unmistakably the most natural way an average person would phrase it. Never "spice up", embellish, or add color, attitude, or slang that is not in the original.
+- AVOID dated, cheesy, or caricatured slang. For example, do NOT turn a plain "let's go watch a movie" into "let's go catch a flick." If a normal person today would not casually say it out loud, don't use it — when in doubt, choose the simpler, more common wording. The same applies to Ukrainian and Spanish: keep colloquial output authentic and current, never a parody of how people talk.
+- Preserve the emotional tone, humor, sarcasm, and cultural nuance of the original — mirror it faithfully, never amplify or exaggerate it.
 - When a concept doesn't translate directly, provide a brief cultural explanation (max 2 sentences) in the "culturalNote" field.
 ${noteLangLine}
 
 SETTINGS:
 - Ukrainian dialect: ${dialectMap[dialect] ?? 'Western Ukraine / Lviv dialect'}
-- English variety: ${englishVariant}. When producing English, write in ${englishVariantGuidance}.
+- ${partner.base} variety: ${partnerVariant}. When producing ${partner.base}, write in ${partnerVariantGuidance}.
 - Speaker gender: ${speakerGender}
 - Addressee gender: ${addresseeGender}
 - Formality: ${formality === 'formal' ? 'Formal (Ви/Ваш)' : 'Informal (ти/твій)'}

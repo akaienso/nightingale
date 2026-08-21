@@ -17,12 +17,12 @@ export default function SiteFooter() {
             v{APP_VERSION}
           </Link>
         </p>
-        <nav className="flex items-center gap-4">
+        <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
           <Link
-            href="/changelog"
+            href="/stand-with-ukraine"
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
-            {t('changelog.link')}
+            {t('footer.standWithUkraine')}
           </Link>
           <span className="text-xs text-muted-foreground/40">·</span>
           <Link
@@ -33,24 +33,10 @@ export default function SiteFooter() {
           </Link>
           <span className="text-xs text-muted-foreground/40">·</span>
           <Link
-            href="/why-nightingale"
+            href="/legal"
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
-            {t('why.link')}
-          </Link>
-          <span className="text-xs text-muted-foreground/40">·</span>
-          <Link
-            href="/privacy"
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {t('privacy.link')}
-          </Link>
-          <span className="text-xs text-muted-foreground/40">·</span>
-          <Link
-            href="/terms"
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {t('terms.link')}
+            {t('footer.legal')}
           </Link>
         </nav>
       </div>

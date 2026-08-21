@@ -203,7 +203,8 @@ export default function LiveConversationMode({ settings }: LiveConversationModeP
       {/* Title bar */}
       <div className="flex items-center justify-center gap-3 py-3 px-4 border-b border-border/50 bg-muted/30">
         <div className="relative w-5 h-5 rounded-full overflow-hidden">
-          <Image src="/nightingale-icon.png" alt="Nightingale" fill className="object-contain" sizes="20px" />
+          <Image src="/nightingale-icon.png" alt="Nightingale" fill className="object-contain dark:hidden" sizes="20px" />
+          <Image src="/nightingale-icon-light.png" alt="Nightingale" fill className="object-contain hidden dark:block" sizes="20px" />
         </div>
         <span className="font-medium text-sm">{t('live.title')}</span>
         <Button

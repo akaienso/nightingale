@@ -24,20 +24,21 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY) as UiLang | null;
-      if (stored === 'en' || stored === 'uk') {
+      if (stored === 'en' || stored === 'uk' || stored === 'es') {
         // A previously saved manual choice always wins.
         setLangState(stored);
         document.documentElement.lang = stored;
         return;
       }
       // No saved preference yet: fall back to the browser/OS language,
-      // limited to the two supported languages (Ukrainian or English).
+      // limited to the supported languages (Ukrainian, Spanish or English).
       const prefs = [
         ...(navigator.languages ?? []),
         navigator.language,
       ].filter(Boolean) as string[];
       const prefersUk = prefs.some((l) => l.toLowerCase().startsWith('uk'));
-      const detected: UiLang = prefersUk ? 'uk' : 'en';
+      const prefersEs = prefs.some((l) => l.toLowerCase().startsWith('es'));
+      const detected: UiLang = prefersUk ? 'uk' : prefersEs ? 'es' : 'en';
       if (detected !== 'en') {
         setLangState(detected);
       }
