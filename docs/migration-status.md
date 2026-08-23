@@ -9,6 +9,16 @@ Repo state at time of writing: `main` @ `1e37533`, clean tree, `APP_VERSION = 1.
 
 ---
 
+> ## ✅ Implementation landed 2026-08-23
+>
+> Rob green-lit everything non-visual and non-rebrand. Done, in reviewable commits:
+> Yarn pin + lockfile regen, `enableScripts` fix, Next.js 14.2.35, both Abacus platform
+> artifacts stripped, `lib/email.ts` + the three route swaps, uploads repointed to R2
+> (`docs/r2-setup.md`), and `.env.example` rebuilt. Sections below are annotated as each
+> completed. **The text rebrand was NOT started** — per the sequencing it runs in Abacus
+> first, and §3 remains the checklist for verifying that diff. All visual assets remain
+> frozen. See §7 for what the Abacus export will collide with.
+
 ## 0. ~~BLOCKER~~ RESOLVED — `package.json` and `yarn.lock` are in the repo
 
 **Rob committed both in `f448398`** (2026-08-23), from the Abacus v1.13.3 source export.
@@ -128,6 +138,9 @@ missing dependency, `html2canvas`.** With that added, `tsc` is green. This matte
   2025-12-11 Next.js security update). Out of scope for this session per instruction,
   but it should be a deliberate decision before going live on a new host, not a drift.
 
+> **✅ DONE 2026-08-23 — bumped 14.2.28 → 14.2.35** (commit `10737fc`); `tsc` clean and
+> production build green. Lockfile delta was Next and its swc binaries only.
+>
 > **RESOLVED (Rob, 2026-08-23): patch during migration.** Bump to the latest 14.2.x patch
 > release as part of the migration work, verified by `tsc --noEmit` and a production build,
 > so the app never goes live on the new host with the known advisory.
@@ -136,6 +149,10 @@ missing dependency, `html2canvas`.** With that added, `tsc` is green. This matte
 ---
 
 ## 2. Goal 2 — the AI provider path
+
+> **✅ IMPLEMENTED 2026-08-23** — `lib/email.ts` added; all three routes swapped off
+> Abacus; `notification_disabled` dropped with no replacement flag, per Rob. Commit
+> `88d816e`. The plan below is retained as the record of what was built and why.
 
 ### The handover doc's premise is wrong, in a good way
 
@@ -539,6 +556,40 @@ marketing site") is already folded in. It only needs `MARKETING_HOSTS` updated.
 No version bump or changelog entry accompanies this commit: it is documentation only,
 with no user-facing change. Per `lib/changelog.ts`, the next release that ships the
 rebrand needs **en, uk and es** text for every item.
+
+---
+
+## 7. What the pending Abacus export will collide with
+
+The rebrand runs in Abacus **on the pre-migration code**, so its export will not contain
+any of the work landed on 2026-08-23. When the zip is diffed in, these files will differ
+for two unrelated reasons at once — rebrand text on one side, provider migration on the
+other. Take the local version of the mechanics and the Abacus version of the words.
+
+| File | Abacus side will have | Local side has | How to reconcile |
+|---|---|---|---|
+| `app/api/contact/route.ts` | renamed HTML copy, `sender_alias` | Cloudflare `sendEmail`, no `notification_disabled` | Keep local structure; port only the renamed prose inside `htmlBody` |
+| `app/api/tutoring-inquiry/route.ts` | same | same | same |
+| `app/api/report/route.ts` | same, plus subject-line rename | same, plus `fromName` from env | same; the subject string is the only text item |
+| `app/layout.tsx` | renamed metadata/OG/Twitter titles | Abacus `<script>` removed | Keep the removal; take the renamed strings |
+| `.env.example` | old Abacus/AWS variables, possibly renamed comments | rebuilt against the real surface | **Keep local wholesale.** The Abacus version documents variables nothing reads |
+| `next.config.js`, `.yarnrc.yml`, `package.json`, `yarn.lock` | probably untouched by a cosmetic rebrand | migration changes | Keep local |
+| `lib/s3.ts`, `lib/aws-config.ts` | untouched | repointed to R2 | Keep local |
+| `lib/email.ts` | **absent** | new | Keep local |
+
+Three specifics worth watching, because a careless merge silently reverts them:
+
+1. **`notification_disabled` must not come back.** It will be present in all three routes
+   on the Abacus side. Rob's decision is that it goes, permanently (§2).
+2. **`sender_alias` / `MAIL_FROM_NAME`.** The Abacus rebrand will rename `sender_alias`
+   in place. Locally that is env-driven now — carry the new display name into
+   `MAIL_FROM_NAME`, do not reintroduce the literal.
+3. **Do not take the Abacus `.env.example`.** It still lists `ABACUSAI_API_KEY`,
+   `WEB_APP_ID`, the `NOTIF_ID_*` trio and the `AWS_*` values, none of which any code
+   reads any more.
+
+Everything else in §3b is unaffected and merges cleanly — the i18n dictionaries, the
+static pages, and `lib/changelog.ts` were not touched by the migration work.
 
 ---
 
