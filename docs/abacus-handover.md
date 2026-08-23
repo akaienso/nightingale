@@ -54,30 +54,66 @@ All 37 conversations in the Abacus account (19 Nightingale + 18 across ServiceSe
 
 ## Hosting migration — BLOCKS Abacus cancellation
 
-The account cannot be canceled yet: Abacus still hosts the running app. As of 2026-08-23:
+The account cannot be canceled yet: Abacus still hosts the running app **and its production database**. As of 2026-08-23:
 
 - `app.nightingale.im` — Cloudflare-proxied (zone is on Cloudflare NS rita/jack) to an Abacus origin
 - `nightingale.im` apex — A record to `66.71.220.11` (Abacus hosting, marketing site from the "Nightingale Marketing Site" session)
 - DNS itself is already on Cloudflare, so cutover is a record change, not a registrar move
 
-### Dependencies that die with the account (verify each before cancel)
+### Agreed sequencing (Rob, 2026-08-23)
 
-1. **Production PostgreSQL.** `DATABASE_URL` almost certainly points at Abacus-managed Postgres. `pg_dump` the production database (schema + data) FIRST — this is the only irreplaceable piece. Users, translations, and chat history live here (`prisma/schema.prisma`).
-2. **App + marketing-site hosting** (both origins above).
-3. **`ABACUSAI_API_KEY`** — the app's AI features may route through Abacus RouteLLM. `.env.example` also has `ANTHROPIC_API_KEY`; confirm the code path and switch AI calls to direct Anthropic before cutover.
-4. **Production env values.** Copy every secret out of the Abacus deployment config while the UI is still accessible: `NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID/SECRET`, `TURNSTILE_*`, `NOTIF_ID_*`, `AWS_*`, `NEXT_PUBLIC_CF_ANALYTICS_TOKEN`, `DATABASE_URL`.
+1. **Finish the rebrand inside Abacus first** (browser) — *cosmetic scope only*: app/product name, Olia naming decision, logos/icons (soloveico assets), palette, in-app copy, version bump + changelog. **Defer to the cutover:** new domain DNS, `NEXTAUTH_URL`, Google OAuth redirect URIs, Turnstile domain. Configuring those on Abacus for a host you're leaving means doing them twice.
+2. **Full project export from Abacus** (zip, as in session 15) — and **sync it into this git repo**: unzip, diff against `akaienso/nightingale`, commit the rebrand changes. The repo is the source of truth Claude Code starts from; an unsynced zip on disk doesn't count.
+3. **Database dump + env capture** (explicit runbooks below).
+4. **Rehost + deployment workflow** (plan below).
+5. **Cancel Abacus** — only after step 6 of the migration plan verifies clean.
 
-Independent of Abacus (no action): S3 uploads bucket (AWS), Turnstile + web analytics (Cloudflare), Google OAuth client, the domain/DNS.
+### DB dump runbook (do while Abacus is still alive — this data is irreplaceable)
+
+The app's users, translations, and chat history live in a PostgreSQL database that Abacus manages. It disappears with the account. Steps:
+
+1. **Get the connection string.** In the Abacus web UI, open the Nightingale deployment's environment/secrets config and copy `DATABASE_URL`. It looks like `postgresql://USER:PASSWORD@HOST:PORT/DBNAME`.
+2. **Test connectivity from the Mac** (Postgres client tools: `brew install libpq` if `pg_dump` is missing, then use `$(brew --prefix libpq)/bin/pg_dump`):
+   ```bash
+   psql "$DATABASE_URL" -c '\dt'   # should list the Prisma tables
+   ```
+3. **Dump** (custom format — compressed, restorable table-by-table):
+   ```bash
+   mkdir -p /Volumes/rmoore-dev/abacus-archive-2026-08-23/db
+   pg_dump "$DATABASE_URL" --format=custom --no-owner --no-privileges \
+     -f /Volumes/rmoore-dev/abacus-archive-2026-08-23/db/nightingale-prod-$(date +%F).dump
+   ```
+4. **Verify the dump is real, not empty:**
+   ```bash
+   pg_restore --list .../nightingale-prod-*.dump | head -30   # table of contents
+   psql "$DATABASE_URL" -c "SELECT relname, n_live_tup FROM pg_stat_user_tables ORDER BY n_live_tup DESC;"
+   ```
+   Row counts from the second command are the checksum — record them in this doc.
+5. **If `HOST` is not reachable from outside Abacus** (internal hostname, connection refused): run the same `pg_dump` from inside an Abacus agent session / the app VM, save the dump into the project files, and pull it out with the project export. Do not skip; find a path.
+6. **Second copy** of the dump somewhere off the SSD (Dropbox is fine — it's user data, treat accordingly).
+
+**Restore into the new database** (during step 4 of the plan):
+```bash
+pg_restore --no-owner --no-privileges -d "$NEW_DATABASE_URL" .../nightingale-prod-*.dump
+psql "$NEW_DATABASE_URL" -c "SELECT relname, n_live_tup FROM pg_stat_user_tables ORDER BY n_live_tup DESC;"  # counts must match
+```
+
+### Env capture runbook
+
+From the Abacus deployment config, copy the **production values** of every variable in `.env.example` into a password manager (Bitwarden) entry — not into a file in this repo:
+`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `ABACUSAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AWS_REGION`, `AWS_BUCKET_NAME`, `AWS_FOLDER_PREFIX`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_CF_ANALYTICS_TOKEN`, `NOTIF_ID_WEBSITE_INQUIRY`, `NOTIF_ID_TUTORING_INQUIRY`.
+
+Also confirm in code whether AI calls go through `ABACUSAI_API_KEY` (RouteLLM) — that key dies with the account. Switch the AI provider path to direct Anthropic (`ANTHROPIC_API_KEY`) before cutover and test translate/chat.
+
+Independent of Abacus (no action needed): S3 uploads bucket (AWS), Turnstile + web analytics (Cloudflare), Google OAuth client itself, the domain/DNS.
 
 ### Migration plan (separate code session)
 
-1. Export prod DB + all env values from Abacus (step 1–4 above)
-2. Stand up Postgres (Neon/Supabase, or Hyperdrive-fronted if going Cloudflare) and restore the dump; `prisma db push` to verify schema parity
-3. Pick host: **Vercel** (least friction for Next.js 14 App Router + Prisma) or **Cloudflare Workers** via `@opennextjs/cloudflare` (keeps everything in the existing CF account; more build work, Prisma needs driver adapters). Deploy from `akaienso/nightingale`
-4. Deployment workflow: GitHub Actions on push to `main` — typecheck (`tsc` fails builds; lint doesn't), build, deploy, `prisma migrate` step. Preview deploys per PR if Vercel
-5. Update `NEXTAUTH_URL`, Google OAuth redirect URIs, and Turnstile domain for the new origin
-6. Cut DNS in Cloudflare (app subdomain origin + apex), verify login/translate/upload flows in prod
+1. Rebrand in Abacus done + project zip exported + synced/committed to `akaienso/nightingale` (sequencing steps 1–2)
+2. DB dump + env capture done per runbooks above
+3. Stand up new Postgres (Neon/Supabase, or Hyperdrive-fronted if going Cloudflare); restore dump; verify row counts match
+4. Pick host: **Vercel** (least friction for Next.js 14 App Router + Prisma) or **Cloudflare Workers** via `@opennextjs/cloudflare` (keeps everything in the existing CF account; more build work, Prisma needs driver adapters). Deploy from `akaienso/nightingale`
+5. Deployment workflow: GitHub Actions on push to `main` — typecheck (`tsc` fails builds; lint doesn't), build, deploy, `prisma migrate` step. Preview deploys per PR if Vercel
+6. Cutover: set `NEXTAUTH_URL`, Google OAuth redirect URIs, Turnstile domain for the new origin (and new domain, if the rebrand domain is ready); repoint DNS in Cloudflare (app subdomain origin + apex); verify login, translate, chat, and upload flows in production
 7. Rehost or fold in the marketing site (currently Abacus-hosted at the apex)
-8. Only then: cancel Abacus
-
-**Sequencing note:** the pending rebrand (session 15, soloveico assets) touches domain, `NEXTAUTH_URL`, OAuth redirects, and Turnstile config — the same surfaces as the hosting cutover. Doing rebrand + rehost in one cutover avoids configuring `nightingale.im` twice.
+8. **Only then: cancel Abacus**
