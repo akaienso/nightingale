@@ -26,7 +26,7 @@ Local setup requires a PostgreSQL `DATABASE_URL`, plus `NEXTAUTH_SECRET` and `NE
 ## Build gotchas
 
 - **ESLint errors do NOT fail the build** (`next.config.js: eslint.ignoreDuringBuilds = true`), but **TypeScript errors DO** (`typescript.ignoreBuildErrors = false`). Type-check your changes; don't rely on lint blocking a bad merge.
-- `prisma/schema.prisma` hardcodes the client `output` path to `/home/ubuntu/ua_us_translator/nextjs_space/node_modules/.prisma/client` (an artifact of the original build host). On a different machine `prisma generate` may need this path adjusted to the default (`node_modules/.prisma/client`) or the directory to exist.
+- `prisma/schema.prisma` generates the client to the default `node_modules/.prisma/client` (the hardcoded Abacus VM output path was removed 2026-08-23 — see `docs/abacus-handover.md`).
 - Build output dir and mode are env-overridable: `NEXT_DIST_DIR` (default `.next`), `NEXT_OUTPUT_MODE`. `tsconfig.json` includes both `.next/` and `.build/` types.
 - Import alias: `@/*` maps to the project root (`./`), e.g. `@/lib/anthropic`, `@/components/ui/button`.
 
