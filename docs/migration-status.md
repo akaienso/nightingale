@@ -79,6 +79,10 @@ clean — the whole repo has exactly one bare dynamic import and this is it.
 - **`next@14.2.28` carries a known security advisory** (npm flags it; see the
   2025-12-11 Next.js security update). Out of scope for this session per instruction,
   but it should be a deliberate decision before going live on a new host, not a drift.
+
+> **RESOLVED (Rob, 2026-08-23): patch during migration.** Bump to the latest 14.2.x patch
+> release as part of the migration work, verified by `tsc --noEmit` and a production build,
+> so the app never goes live on the new host with the known advisory.
 - `next-env.d.ts` is untracked. Harmless — Next regenerates it.
 
 ---
@@ -227,6 +231,11 @@ equivalent, so that branch needs a replacement. Recommended: an explicit
 `ok: true` without sending. That preserves the exact existing behaviour and keeps the kill
 switch, rather than silently dropping a feature during a migration. **Rob's call.**
 
+> **RESOLVED (Rob, 2026-08-23): drop it — no flag, no mute.** The `notification_disabled`
+> branch was Abacus platform behaviour Rob never asked for. The forms are the only channel
+> users have to reach him; they must always send. Remove the branch entirely — on send
+> failure, use the existing error path (502). Do **not** implement `EMAIL_NOTIFICATIONS_DISABLED`.
+
 **Also fix while in there:** all three build HTML only. `SendEmailArgs.text` is marked
 required above so the plain-text alternative cannot be forgotten — it is a real
 deliverability factor, and these are the first emails from a brand-new sending domain with
@@ -237,7 +246,7 @@ no reputation.
 | Action | Variable |
 |---|---|
 | Remove | `ABACUSAI_API_KEY`, `WEB_APP_ID`, `NOTIF_ID_WEBSITE_INQUIRY`, `NOTIF_ID_TUTORING_INQUIRY`, `NOTIF_ID_CONTENT_REPORT` |
-| Add | `CF_ACCOUNT_ID`, `CF_EMAIL_API_TOKEN`, and `EMAIL_NOTIFICATIONS_DISABLED` if the flag above is adopted |
+| Add | `CF_ACCOUNT_ID`, `CF_EMAIL_API_TOKEN` — `EMAIL_NOTIFICATIONS_DISABLED` **not adopted**, see resolution above |
 | Keep | `REPORT_RECIPIENT_EMAIL`, `REPORT_PER_HOUR`, `REPORT_PER_DAY` |
 
 `.env.example` should gain all of these — it is currently missing even the ones in use
