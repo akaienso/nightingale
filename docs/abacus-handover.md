@@ -119,6 +119,15 @@ psql "$NEW_DATABASE_URL" -c "SELECT relname, n_live_tup FROM pg_stat_user_tables
 > `Uploads` folder may already hold them — verify by count). The new host needs its own object
 > storage (R2 on the RMoore.dev Cloudflare account is the natural fit) and the upload code
 > repointed — add to the migration plan.
+> **UPDATE (2026-08-23, later):** both rescues are DONE in-environment and verified by the agent:
+> `nightingale-prod-2026-08-23.dump` (132 KB, custom format, `pg_restore --list` shows all 8 schema
+> tables with data) and `uploads-rescue/public/reports/` (6 user report images, 505,515 bytes,
+> S3-to-local counts and bytes match). The root `Uploads/` folder proved to be brand/design assets,
+> not the bucket. Rob downloads both to `/Volumes/rmoore-dev/abacus-archive-2026-08-23/`; local
+> restorability check pending. ⚠️ The dump contains real user data (accounts, session tokens, chat
+> history) — keep it off synced/public storage; move to the encrypted NVMe when that lands. The new
+> host still needs its own object storage (R2) with the 6 report images re-seeded and upload code
+> repointed.
 > Also resolved: NO Reserved value needs capturing anywhere. The DB dump is produced in-env
 > without a human seeing `DATABASE_URL`; `NEXTAUTH_SECRET` is rotated at cutover (one forced
 > re-login); the `AWS_*` values die with the bucket. The earlier `secrets-capture.txt` idea is
