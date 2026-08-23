@@ -136,7 +136,7 @@ Independent of Abacus (no action needed): S3 uploads bucket (AWS), Turnstile + w
 
 ## Rob's pre-cutover prep (manual, in Abacus + Cloudflare — nothing here switches traffic)
 
-**Status 2026-08-23 (end of day):** no checklist items completed yet — all still open. **Icon assets are ON HOLD**: Rob is revising the icon; do not generate icon sets or wire icon assets into the app until he delivers finals. For brand files, the PNG/SVG/PSD set in SOLOVEICO/brand/ is canonical; the three soloveico webps referenced earlier are Dropbox-stranded and superseded.
+**Status 2026-08-23 (end of day):** no checklist items completed yet — all still open. **ALL brand assets are ON HOLD**: Rob is revising the icon, and the icon is a component of the wordmark, so every visual brand asset (icon, wordmark, favicons, app icon sets, in-app logo usage) is blocked until he delivers finals. Do not work on or ship anything brand-visual. The existing files in SOLOVEICO/brand/ are pre-revision reference only; the three soloveico webps referenced earlier are Dropbox-stranded and superseded. Non-visual rebrand work (name-string inventory, domain-surface classification) may proceed.
 
 ### Abacus web UI
 
