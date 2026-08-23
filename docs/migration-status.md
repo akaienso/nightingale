@@ -162,11 +162,12 @@ Add `CF_ACCOUNT_ID` and `CF_EMAIL_API_TOKEN`. Keep `REPORT_RECIPIENT_EMAIL`.
 
 **Two open sub-questions this raises — flagging, not guessing:**
 
-1. **Which Cloudflare account?** The domain has to be onboarded in the account that holds
-   the `solovei.co.ua` zone, and the API token scoped to that same account. Per the
-   standing rule, personally-licensed infrastructure belongs in the personal `RMoore.dev`
-   account (`5d39aea8832f48a8dc808afd97d9a29c`), never an MMP one — but where the new
-   zone lands is your call, and it determines this.
+1. ~~Which Cloudflare account?~~ **RESOLVED (Rob, 2026-08-23): the personal `RMoore.dev`
+   account**, ID `5d39aea8832f48a8dc808afd97d9a29c` (login `domains@rmoore.dev`). So
+   `CF_ACCOUNT_ID = 5d39aea8832f48a8dc808afd97d9a29c`, the `solovei.co.ua` zone is added
+   there, Email Sending and Email Routing are onboarded there, and `CF_EMAIL_API_TOKEN`
+   is scoped to that account only. Consistent with the standing rule that
+   personally-licensed infrastructure never lands in an MMP account.
 2. **Receiving, not just sending.** Email Sending only sends. Six mailboxes are referenced
    in code and copy — `hello@`, `support@`, `reports@`, `olia@`, `privacy@`, `legal@` —
    and every one of them needs to actually *receive* on `solovei.co.ua`. That is
@@ -499,9 +500,15 @@ rebrand needs **en, uk and es** text for every item.
    pre-work is what the handover doc already records: the 2026-08-23 conversation export,
    the Prisma output-path fix, and the docs themselves.
 
+6. ~~Which Cloudflare account holds the `solovei.co.ua` zone?~~ **The personal
+   `RMoore.dev` account** (`5d39aea8832f48a8dc808afd97d9a29c`). See §2.
+
 **Still open:**
 
-6. **Which Cloudflare account holds the `solovei.co.ua` zone?** Determines where Email
-   Sending is onboarded and how the API token is scoped. See §2.
 7. **Email Routing for the six inbound mailboxes** — needs setting up alongside sending,
    or the forms deliver into a void. See §2.
+8. **Which account holds the existing `nightingale.im` zone?** Not verifiable from here —
+   there is no zone-listing tool in this session, so it has not been checked. If that zone
+   is in an MMP account rather than `RMoore.dev`, the cutover gains a zone-move step and
+   the two domains are briefly split across accounts. Worth confirming in the dashboard
+   while doing the DNS-export prep item.
