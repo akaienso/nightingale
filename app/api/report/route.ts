@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { uploadPublicBuffer } from '@/lib/s3';
 import { enforceRateLimits, getClientIp } from '@/lib/rate-limit';
+import { sendEmail, htmlToText, mailbox } from '@/lib/email';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -140,33 +141,17 @@ export async function POST(request: NextRequest) {
       </div>
     `;
 
-    const recipient = process.env.REPORT_RECIPIENT_EMAIL || 'reports@nightingale.im';
-
-    const response = await fetch('https://apps.abacus.ai/api/sendNotificationEmail', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        deployment_token: process.env.ABACUSAI_API_KEY,
-        app_id: process.env.WEB_APP_ID,
-        notification_id: process.env.NOTIF_ID_CONTENT_REPORT,
-        subject: `Nightingale report: ${categoryLabel} (${modeLabel})`,
-        body: htmlBody,
-        is_html: true,
-        recipient_email: recipient,
-        reply_to: email && EMAIL_RE.test(email) ? email : undefined,
-        sender_email: appUrl ? `noreply@${appHost}` : undefined,
-        sender_alias: 'Nightingale Reports',
-      }),
+    const sent = await sendEmail({
+      to: mailbox('reports', process.env.REPORT_RECIPIENT_EMAIL),
+      subject: `Nightingale report: ${categoryLabel} (${modeLabel})`,
+      html: htmlBody,
+      text: htmlToText(htmlBody),
+      replyTo: email && EMAIL_RE.test(email) ? email : undefined,
+      fromName: `${process.env.MAIL_FROM_NAME || 'Nightingale'} Reports`,
     });
 
-    const result = await response.json().catch(() => ({}));
-
-    if (!result?.success) {
-      if (result?.notification_disabled) {
-        // Owner turned this notification off — don't block the user.
-        return NextResponse.json({ success: true, screenshotUrl });
-      }
-      console.error('Content report email failed:', result);
+    if (!sent.ok) {
+      console.error('Content report email failed:', sent.reason, sent.detail ?? '');
       return NextResponse.json({ success: false, error: 'send_failed' }, { status: 502 });
     }
 

@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
+import { sendEmail, htmlToText, mailbox } from '@/lib/email';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -53,31 +54,16 @@ export async function POST(request: Request) {
       </div>
     `;
 
-    const response = await fetch('https://apps.abacus.ai/api/sendNotificationEmail', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        deployment_token: process.env.ABACUSAI_API_KEY,
-        app_id: process.env.WEB_APP_ID,
-        notification_id: process.env.NOTIF_ID_TUTORING_INQUIRY,
-        subject: `New tutoring inquiry from ${name}`,
-        body: htmlBody,
-        is_html: true,
-        recipient_email: 'olia@nightingale.im',
-        reply_to: email,
-        sender_email: appUrl ? `noreply@${appHost}` : undefined,
-        sender_alias: 'Nightingale',
-      }),
+    const sent = await sendEmail({
+      to: mailbox('olia', process.env.TUTORING_RECIPIENT_EMAIL),
+      subject: `New tutoring inquiry from ${name}`,
+      html: htmlBody,
+      text: htmlToText(htmlBody),
+      replyTo: email,
     });
 
-    const result = await response.json().catch(() => ({}));
-
-    if (!result?.success) {
-      if (result?.notification_disabled) {
-        // Owner turned notifications off — treat as success so the visitor isn't blocked.
-        return NextResponse.json({ success: true });
-      }
-      console.error('Tutoring inquiry email failed:', result);
+    if (!sent.ok) {
+      console.error('Tutoring inquiry email failed:', sent.reason, sent.detail ?? '');
       return NextResponse.json({ success: false, error: 'send_failed' }, { status: 502 });
     }
 
