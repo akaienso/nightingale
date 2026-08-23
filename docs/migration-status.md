@@ -121,14 +121,62 @@ All three call `POST https://apps.abacus.ai/api/sendNotificationEmail` with
 `NOTIF_ID_*` per form. The response contract they depend on is
 `{ success: boolean, notification_disabled?: boolean }`.
 
-**These three forms silently break at cutover unless an email provider is chosen.**
-Options, roughly in order of least friction: Resend, Postmark, AWS SES (an AWS account
-already exists for S3), or Cloudflare Email Sending if the host ends up being Workers.
-The blast radius is small and identical in all three files — one `sendNotification()`
-helper in `lib/` replacing three inline `fetch` calls, then delete `WEB_APP_ID`,
-`ABACUSAI_API_KEY` and the `NOTIF_ID_*` trio from the env surface.
+**These three forms silently break at cutover.**
 
-**This is a decision for Rob, not a default I should pick.** Flagging, not guessing.
+#### Decision (Rob, 2026-08-23): **Cloudflare Email Sending**, via the REST API
+
+Verified against the current Cloudflare Email Service docs — sending from an app that is
+*not* on Workers is a first-class supported path, so this composes fine with the Vercel
+recommendation in §4:
+
+```
+POST https://api.cloudflare.com/client/v4/accounts/{account_id}/email/sending/send
+Authorization: Bearer <API_TOKEN>     # token scoped to email sending
+```
+
+**Setup** (one-time, before cutover): onboard the sending domain with
+`npx wrangler email sending enable solovei.co.ua`, then verify with
+`npx wrangler email sending dns get solovei.co.ua`. Cloudflare auto-configures **SPF and
+DKIM**. **DMARC is not auto-created** — add it manually:
+`v=DMARC1; p=quarantine; rua=mailto:dmarc-reports@solovei.co.ua`.
+
+**Implementation shape:** one `lib/send-email.ts` helper replacing the three inline
+`fetch` calls. Field-name traps worth writing down now, because they are silent failures:
+`from` takes **`address`**, not `email` (that is the Workers-binding spelling), and
+reply-to is **`reply_to`**, not `replyTo`.
+
+**The response contract changes, and the routes' error handling has to change with it.**
+Abacus returns `{ success, notification_disabled? }`; Cloudflare returns
+`{ delivered: [], permanent_bounces: [], queued: [] }`. In particular there is **no
+equivalent of `notification_disabled`** — all three routes currently treat that flag as
+"owner turned notifications off, return success so the visitor isn't blocked." That
+branch has no counterpart and needs a deliberate replacement, or the graceful-degradation
+behaviour is lost.
+
+Also required: include **both `html` and `text`** bodies (all three routes are HTML-only
+today, which costs deliverability), and use a recognisable sender name.
+
+**Env surface after the switch:** drop `ABACUSAI_API_KEY`, `WEB_APP_ID`,
+`NOTIF_ID_WEBSITE_INQUIRY`, `NOTIF_ID_TUTORING_INQUIRY`, `NOTIF_ID_CONTENT_REPORT`.
+Add `CF_ACCOUNT_ID` and `CF_EMAIL_API_TOKEN`. Keep `REPORT_RECIPIENT_EMAIL`.
+
+**Two open sub-questions this raises — flagging, not guessing:**
+
+1. **Which Cloudflare account?** The domain has to be onboarded in the account that holds
+   the `solovei.co.ua` zone, and the API token scoped to that same account. Per the
+   standing rule, personally-licensed infrastructure belongs in the personal `RMoore.dev`
+   account (`5d39aea8832f48a8dc808afd97d9a29c`), never an MMP one — but where the new
+   zone lands is your call, and it determines this.
+2. **Receiving, not just sending.** Email Sending only sends. Six mailboxes are referenced
+   in code and copy — `hello@`, `support@`, `reports@`, `olia@`, `privacy@`, `legal@` —
+   and every one of them needs to actually *receive* on `solovei.co.ua`. That is
+   **Email Routing**, a separate setup (`wrangler email routing enable`), with verified
+   destination addresses. Worth doing in the same sitting; otherwise the contact form
+   sends successfully to an address that silently drops the mail.
+
+Note: Cloudflare Email Service is transactional-only by policy. All three of these forms
+are transactional, so that constraint is satisfied — but it rules the service out for any
+future newsletter.
 
 ### Two more Abacus artifacts to strip
 
@@ -166,19 +214,18 @@ and the export is then diffed into this repo. So this inventory is a **checklist
 verify the Abacus rebrand against**, not a work order to execute here — unless Rob
 decides to reverse the sequencing.
 
-### 3a. Naming — which spelling? ⚠️ OPEN QUESTION
+### 3a. Naming — RESOLVED (Rob, 2026-08-23)
 
-The brand folder contains **three** spellings and there is a fourth in a document title:
+| Form | Use |
+|---|---|
+| **Soloveico** | The brand name in Latin characters. This is the one that goes in the app. |
+| **Соловейко** | The Cyrillic form. |
+| `solovei.co.ua` | The domain. |
+| soloveyko / soloveiko / so-lo-VEY-ko | Common phonetic spellings. Each is correct in its own context — do not "normalise" them to each other. |
+| ~~Soleico~~ | **The only wrong one.** A typo in `brand/icon/soleico-mark-*.png|svg` — the "ov" was dropped after the L. Those filenames are the sole error. |
 
-- `brand/wordmark/soloveico-wordmark*.png` and `brand/assets/Soloveico-Bird.webp` → **Soloveico**
-- `brand/icon/soleico-mark-*.png`, `soleico-mark.svg` → **Soleico**
-- `content/why-soloveiko/Why Soloveiko.md` → **Soloveiko**
-- `~/workbench/Nightingale/Translation Rules – solovei.co.ua.{md,pdf,docx}` → **solovei.co.ua**
-
-All four are the same Ukrainian word (соловей / соловейко — "nightingale", which means
-the *Why Nightingale* metaphor survives the rename intact). But the app can only have one
-spelling, and the icon set is currently the odd one out. **Rob must pick one before
-anything is renamed.**
+The word means "nightingale", so the *Why Nightingale* metaphor survives the rename intact —
+the page needs a new slug and new brand references, not a new argument.
 
 ### 3b. COSMETIC — safe to change anywhere
 
@@ -195,11 +242,23 @@ strings and have to be edited literally.
 | **Service worker** | `public/sw.js` | 5 refs. **`CACHE_NAME = 'nightingale-v5'` must be bumped**, or returning users keep the old cached logos |
 | **App components** | `translator-app.tsx` 13, `header.tsx` 5, `live-conversation-mode.tsx` 4, `image-translate-mode.tsx` 4, `loading-overlay.tsx` 2, `help-panel.tsx` 2, plus 6 more with 1 each | |
 | **Static pages** | `app/why-nightingale/page.tsx` 11, `app/site/page.tsx` 8, `terms` 3, `privacy` 3, `changelog` 3, `legal` 2, `about-developer` 2, `auth/login` 2, `auth/signup` 2, `stand-with-ukraine` 1 | |
-| **Model prompts** | `app/api/translate/route.ts:90,101,229`, `app/api/chat/route.ts:29`, `lib/ukrainian-purity.ts:19` | ⚠️ Persona text. `route.ts:101` reads *"you are simply Nightingale"* — the non-chat engine identifies itself by brand name to the model. Rename carefully; this changes model behaviour, not just pixels |
+| **Model prompts** | `app/api/translate/route.ts:90,101,229`, `app/api/chat/route.ts:29`, `lib/ukrainian-purity.ts:19` | ⚠️ Persona text. `route.ts:101` reads *"you are simply Nightingale"* — the non-chat engine identifies itself by brand name to the model. Rename carefully; this changes model behaviour, not just pixels. **Do not touch Olia / Оля — see the rule below** |
 | **Route + asset path** | `/why-nightingale` → new slug; `public/why-nightingale/` (5 images incl. `hero-nightingale.jpg`); inbound links at `translator-app.tsx:530`, `site/page.tsx:130,423` | Add a redirect from the old path if it has any inbound links |
 | **Image assets** | `public/nightingale-icon{,-light,-192,-512}.png`, `nightingale-wordmark{,-light}.png`, `nightingale-loading.mp4`, `og-image.png`, `favicon.{ico,svg}`, `favicon-{16,32}x{16,32}.png`, `apple-touch-icon.png`, `android-chrome-{192,512}.png` | Referenced 11× (`-icon.png`), 10× (`-icon-light.png`), 4×/4× (wordmarks) |
 | **Palette** | `app/globals.css` — `--primary: 152 32% 33%` (light) / `150 36% 50%` (dark), `--accent: 34 52% 45%` / `36 55% 52%` | Only if the new brand changes colour. Never hardcode; edit the tokens |
 | **Docs** | `README.md`, `CLAUDE.md`, `STYLE_GUIDE.md` | |
+
+> ### ⛔ Olia and Оля are out of scope for the rebrand
+>
+> **Rob, 2026-08-23: Olia stays Olia, and Оля stays Оля. Never convert one form to the
+> other, in either direction.** Each appears in the form it does for a reason. Do not
+> transliterate, "normalise", or unify them, and do not change either one without Rob's
+> direct consent — not as part of the rebrand, not as a drive-by consistency fix, not as
+> a cleanup. This covers `lib/i18n.ts` (44 Latin / 22 Cyrillic), `lib/i18n-es.ts` (42),
+> the model prompts in `app/api/{translate,chat}/route.ts`, `lib/verify-translation.ts`,
+> `lib/changelog.ts`, the `olia-*` asset filenames, and the `olia@` mailbox.
+>
+> The trademark conflict was with "Nightingale". It has nothing to do with Olia.
 
 ### 3c. DOMAIN-SHAPED — defer to cutover (handover step 6)
 
@@ -213,21 +272,30 @@ strings and have to be edited literally.
 | Turnstile widget domain | Cloudflare dashboard |
 | DNS | Cloudflare — apex A + proxied `app` record |
 
-### 3d. Brand assets — one gap ⚠️
+### 3d. Brand assets — wordmark ready, icons NOT ready ⚠️
 
-The handover doc expects `soloveico-wordmark.webp`, `soloveico-icon.webp`,
-`soloveico-icon-light.webp`. **None of the three exist.** What is actually on disk at
 `~/workbench/Nightingale/SOLOVEICO/brand/`:
 
-- `assets/` — `Soloveico-Bird.{psd,webp}`, `soloveico-bubble.{psd,webp}` ✅
-- `wordmark/` — `soloveico-wordmark-{light,dark}.png` + `.psd` (PNG, not webp)
-- `icon/` — `soleico-mark-{16,32,48,64,128,256,512}.png`, `soleico-mark{,-dark}.svg`,
-  `app-icon-{192,512,dark-512,maskable-512}.png`, `apple-touch-icon-180.png`,
-  `soloveico-icon{,-light}.psd`
+- **`wordmark/` — ready ✅** `soloveico-wordmark.webp` (light mode) and
+  `soloveico-wordmark-dark-mode.webp` (dark mode), added 2026-08-23, plus the
+  `-light`/`-dark` PNGs and the PSD.
+- **`icon/` — DO NOT SHIP.** Rob is still revising the icons (2026-08-23). Everything
+  currently in that folder, including the misspelled `soleico-mark-*` set, is
+  provisional. Wait for the final set before touching any icon, favicon, PWA manifest
+  icon, or `apple-touch-icon`.
+- `assets/` — `Soloveico-Bird.{psd,webp}`, `soloveico-bubble.{psd,webp}`.
 
-So the **raster/vector coverage is actually better than expected** — a full icon set at
-every size plus SVGs, and light/dark wordmarks. The webp files are simply not the format
-that got produced. See the question at the end of this doc.
+> ⚠️ **Light/dark naming inverts between the brand folder and the repo.** The repo's
+> convention is that `nightingale-wordmark-light.png` is the *light-coloured artwork
+> used on dark backgrounds*, whereas the brand folder's `-dark-mode` suffix names the
+> *mode it is for*. So `soloveico-wordmark-dark-mode.webp` → replaces
+> `nightingale-wordmark-light.png`, and `soloveico-wordmark.webp` → replaces
+> `nightingale-wordmark.png`. Verify visually before wiring them up; this is an easy
+> swap to get backwards, and it shows up as an invisible logo in one theme only.
+
+Sequencing consequence: the wordmark swap can proceed independently, but **the icon
+work is a hard gate on the PWA manifest, `sw.js` precache list, and every favicon
+variant** — those should be done in one pass once the final icons land, not twice.
 
 ---
 
@@ -316,7 +384,8 @@ marketing site") is already folded in. It only needs `MARKETING_HOSTS` updated.
 3. Sync the zip into this repo; diff against `main`; commit. Verify the rebrand against
    the §3 checklist and close whatever the Abacus agent missed.
 4. Strip Abacus: the `layout.tsx` script tag, the `next.config.js` error-reporter block,
-   the `.yarnrc.yml` `globalFolder` line, and the three email routes → new provider.
+   the `.yarnrc.yml` `globalFolder` line, and the three email routes → Cloudflare Email
+   Sending (§2). Onboard `solovei.co.ua` for both sending and routing first.
 5. Add `html2canvas`; confirm `tsc --noEmit` is green and `next build` succeeds locally.
 6. New Postgres + restore + row-count verification.
 7. Vercel project from `akaienso/nightingale`; env vars; preview deploy; smoke-test
@@ -329,22 +398,23 @@ rebrand needs **en, uk and es** text for every item.
 
 ---
 
-## Open questions for Rob
+## Open questions — status
 
-1. **Which spelling?** Soloveico / Soleico / Soloveiko — all three are in the brand
-   folder, and `solovei.co.ua` appears in the translation-rules docs. Related: is the new
-   domain `solovei.co.ua`, or something else? (§3a)
-2. **Does Olia stay Olia?** This was one of session 15's five unanswered questions. She is
-   named after a real person, `olia@nightingale.im` is a live mailbox, and her name is
-   baked into the model prompts in both English and Cyrillic (`Оля`). My read is she
-   should stay — the trademark issue was with "Nightingale", not with her — but it is
-   your call. (§3b)
-3. **Email provider for the three forms?** Resend / Postmark / SES / Cloudflare. This is
-   a hard dependency for cutover — the contact, report, and tutoring-inquiry forms all
-   break when the Abacus account closes. (§2)
-4. **The three `*.webp` brand files do not exist** — the wordmark shipped as PNG and the
-   icons as PNG+SVG+PSD. Are the webp versions still stuck as Dropbox online-only files,
-   or should the existing PNG/SVG set simply be used? The PNG/SVG coverage looks complete
-   to me. (§3d)
-5. **Which items on your Abacus/Cloudflare/Google prep checklist are already done?** I
-   have deliberately acted on none of them. (handover doc §"Rob's pre-cutover prep")
+**Answered by Rob, 2026-08-23:**
+
+1. ~~Which spelling?~~ **Soloveico** (Latin) / **Соловейко** (Cyrillic) / **solovei.co.ua**
+   (domain). Only `soleico-*` is wrong — a typo. See §3a.
+2. ~~Does Olia stay Olia?~~ **Yes, and Оля stays Оля — never convert between them.** See
+   the rule box in §3b.
+3. ~~Email provider?~~ **Cloudflare Email Sending**, REST API. See §2.
+4. ~~The `.webp` brand files?~~ **Wordmark is ready** (both modes, 2026-08-23).
+   **Icons are still being revised — do not ship any icon yet.** See §3d.
+
+**Still open:**
+
+5. **Which prep-checklist items are done?** Rob is reviewing the checklist and will
+   report back. Nothing on it has been acted on.
+6. **Which Cloudflare account holds the `solovei.co.ua` zone?** Determines where Email
+   Sending is onboarded and how the API token is scoped. See §2.
+7. **Email Routing for the six inbound mailboxes** — needs setting up alongside sending,
+   or the forms deliver into a void. See §2.

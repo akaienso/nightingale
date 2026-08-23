@@ -62,10 +62,10 @@ Note: UI label "Output Style" is stored internally as `outputFormat`, and UI "Ou
 Standard NextAuth tables (`User`, `Account`, `Session`, `VerificationToken`) plus: `User.settings` (Json, synced prefs) and `preferredName`/`bio`; `TranslationHistory`; `ChatConversation` → `ChatMessage`; `RateLimit` (the limiter's buckets).
 
 ### i18n
-`lib/i18n.ts` holds the full EN/UK dictionary and `translate` helper; `components/i18n-provider.tsx` exposes `useI18n()` (`t`, `lang`, `setLang`). UI language is separate from translation direction, and it controls which language cultural notes are written in.
+`lib/i18n.ts` holds the EN/UK dictionary and the `translate` helper, and `lib/i18n-es.ts` holds the Spanish one; `components/i18n-provider.tsx` exposes `useI18n()` (`t`, `lang`, `setLang`). UI language is separate from translation direction, and it controls which language cultural notes are written in.
 
 ### Changelog / versioning
-`lib/changelog.ts` is the single source of app version (`APP_VERSION`) and the `CHANGELOG` array (rendered at `/changelog`). Every changelog item needs both `en` and `uk` text. Bump `APP_VERSION` (semver) and prepend a release when shipping user-facing changes.
+`lib/changelog.ts` is the single source of app version (`APP_VERSION`) and the `CHANGELOG` array (rendered at `/changelog`). Every changelog item needs `en`, `uk` **and `es`** text. Bump `APP_VERSION` (semver) and prepend a release when shipping user-facing changes.
 
 ## UI conventions
 
@@ -75,6 +75,32 @@ Read `STYLE_GUIDE.md` before building UI. Key points:
 - **Never hardcode colors** — use the CSS-variable design tokens (`bg-primary`, `text-muted-foreground`, `border-border`, …). Same for spacing (8px grid), radius, shadows.
 - Do not remove providers from `app/layout.tsx` without reason — `ChunkLoadErrorHandler` in particular guards a known ChunkLoadError race.
 
+## Brand names — Soloveico, and the Olia rule
+
+A rebrand from "Nightingale" to **Soloveico** is in flight (trademark conflict). Status
+and the full surface inventory live in `docs/migration-status.md`.
+
+- **Soloveico** — the brand name in Latin characters. **Соловейко** — the Cyrillic form.
+  **solovei.co.ua** — the domain. "soloveyko" / "soloveiko" / "so-lo-VEY-ko" are valid
+  phonetic spellings in their own contexts; do not normalise them to each other.
+- **"Soleico" is a typo** (the "ov" was dropped after the L). It appears only in the
+  filenames `brand/icon/soleico-mark-*.png|svg` outside this repo. Never introduce it.
+
+### ⛔ Olia and Оля — never convert between them
+
+**Olia stays Olia. Оля stays Оля.** Each appears in the form it does deliberately. Never
+transliterate, "normalise", or unify the two, in either direction, and never change
+either one without Rob's direct consent — not during the rebrand, not as a consistency
+fix, not as a cleanup. This covers `lib/i18n.ts`, `lib/i18n-es.ts`, the model prompts in
+`app/api/{translate,chat}/route.ts`, `lib/verify-translation.ts`, `lib/changelog.ts`,
+the `olia-*` asset filenames, and the `olia@` mailbox.
+
+The trademark conflict was with "Nightingale". It has nothing to do with Olia. The same
+care applies to all Ukrainian text in this repo: preserve it exactly.
+
 ## Company / naming
 
-Per global instructions: company is **Member Minder Pro, LLC** (three words, never "MemberMinder"). No AI/Claude attribution in any commits or PRs. Note this project directory is **not a git repository**.
+Per global instructions: company is **Member Minder Pro, LLC** (three words, never "MemberMinder"). No AI/Claude attribution in any commits or PRs.
+
+This project **is** a git repository — `github.com/akaienso/nightingale`, branch `main`. (An
+earlier note here said otherwise; that was true only while the code lived in the Abacus VM.)
