@@ -112,11 +112,17 @@ psql "$NEW_DATABASE_URL" -c "SELECT relname, n_live_tup FROM pg_stat_user_tables
 > `NEXTAUTH_SECRET` is optional — rotating it at cutover only forces a one-time re-login.
 > `DATABASE_URL` and the three `AWS_*` values are being captured via the in-environment agent
 > (printenv to `secrets-capture.txt` in project files), which bypasses the UI redaction.
-> ⚠️ OPEN QUESTION: the `AWS_*` values being "Reserved" suggests the S3 uploads bucket may be
-> **Abacus-provisioned, not Rob's AWS** — contradicting the "independent of Abacus, no action"
-> line below. The agent has been asked to confirm ownership and, if Abacus-owned, to copy all
-> objects under the prefix into the project files before cancellation. Do not treat uploads as
-> safe until that answer is recorded here.
+> **RESOLVED (Rob, 2026-08-23): the S3 bucket is Abacus-provisioned.** Rob has no AWS account
+> and never set one up — the "independent of Abacus, no action" line below is WRONG for S3.
+> **User uploads must be rescued before cancellation**: the in-environment agent copies every
+> object under `$AWS_FOLDER_PREFIX` into `uploads-rescue/` in the project files (the root-level
+> `Uploads` folder may already hold them — verify by count). The new host needs its own object
+> storage (R2 on the RMoore.dev Cloudflare account is the natural fit) and the upload code
+> repointed — add to the migration plan.
+> Also resolved: NO Reserved value needs capturing anywhere. The DB dump is produced in-env
+> without a human seeing `DATABASE_URL`; `NEXTAUTH_SECRET` is rotated at cutover (one forced
+> re-login); the `AWS_*` values die with the bucket. The earlier `secrets-capture.txt` idea is
+> withdrawn. Rob's Bitwarden harvest of the visible values completes env capture.
 
 From the Abacus deployment config, copy the **production values** of every variable in `.env.example` into a password manager (Bitwarden) entry — not into a file in this repo:
 `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `ABACUSAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AWS_REGION`, `AWS_BUCKET_NAME`, `AWS_FOLDER_PREFIX`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_CF_ANALYTICS_TOKEN`, `NOTIF_ID_WEBSITE_INQUIRY`, `NOTIF_ID_TUTORING_INQUIRY`,
