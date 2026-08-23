@@ -174,6 +174,78 @@ Add `CF_ACCOUNT_ID` and `CF_EMAIL_API_TOKEN`. Keep `REPORT_RECIPIENT_EMAIL`.
    destination addresses. Worth doing in the same sitting; otherwise the contact form
    sends successfully to an address that silently drops the mail.
 
+#### Concrete plan — files, functions, env
+
+The three routes are structurally identical (validate → build HTML → POST → interpret
+`result.success`), so this is one helper plus three mechanical call-site swaps. Line
+numbers are against `main` @ `4526280`.
+
+**New: `lib/email.ts`**
+
+```ts
+export interface SendEmailArgs {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;                       // NEW — required, see below
+  replyTo?: string;
+  fromName: string;                   // was `sender_alias`
+}
+export type SendEmailResult =
+  | { ok: true }
+  | { ok: false; reason: 'bounced' | 'rejected' | 'misconfigured' | 'network' };
+
+export async function sendEmail(args: SendEmailArgs): Promise<SendEmailResult>
+```
+
+Implementation: `POST https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/email/sending/send`
+with `Authorization: Bearer ${CF_EMAIL_API_TOKEN}`. Body maps
+`from: { address: \`noreply@${appHost}\`, name: fromName }` — **`address`, not `email`** —
+and **`reply_to`, not `replyTo`**. Return `ok: true` when the address appears in
+`delivered` or `queued`; `'bounced'` when it lands in `permanent_bounces`. Missing
+`CF_ACCOUNT_ID`/`CF_EMAIL_API_TOKEN` → `'misconfigured'`, so a bad deploy is
+distinguishable from a bad address in the logs.
+
+**Per-route changes** — identical shape in all three:
+
+| File | Replace | Notes |
+|---|---|---|
+| `app/api/contact/route.ts` | 59–76 → `sendEmail(...)` | `to: 'hello@…'`, `fromName: 'Nightingale'` (→ rebrand), `replyTo: email` |
+| `app/api/tutoring-inquiry/route.ts` | 56–73 → `sendEmail(...)` | `to: 'olia@…'`, `fromName: 'Nightingale'` (→ rebrand) |
+| `app/api/report/route.ts` | 145–162 → `sendEmail(...)` | `to: recipient`, `fromName: 'Nightingale Reports'` (→ rebrand), `replyTo` only when `EMAIL_RE` passes. Keep returning `screenshotUrl` on both success paths |
+
+Each route's `if (!result?.success)` block (contact 78–85, tutoring 75–82, report 164–171)
+becomes `if (!res.ok)`. The public response contract — `{ success, error }`, `502` on send
+failure, `500` on throw, and report's `429` rate-limit path — **does not change**, so no
+client-side work.
+
+**The one behavioural decision.** All three currently treat `notification_disabled` as
+success ("owner turned notifications off — don't block the visitor"). Cloudflare has no
+equivalent, so that branch needs a replacement. Recommended: an explicit
+`EMAIL_NOTIFICATIONS_DISABLED` env flag checked at the top of `sendEmail`, returning
+`ok: true` without sending. That preserves the exact existing behaviour and keeps the kill
+switch, rather than silently dropping a feature during a migration. **Rob's call.**
+
+**Also fix while in there:** all three build HTML only. `SendEmailArgs.text` is marked
+required above so the plain-text alternative cannot be forgotten — it is a real
+deliverability factor, and these are the first emails from a brand-new sending domain with
+no reputation.
+
+**Env changes**
+
+| Action | Variable |
+|---|---|
+| Remove | `ABACUSAI_API_KEY`, `WEB_APP_ID`, `NOTIF_ID_WEBSITE_INQUIRY`, `NOTIF_ID_TUTORING_INQUIRY`, `NOTIF_ID_CONTENT_REPORT` |
+| Add | `CF_ACCOUNT_ID`, `CF_EMAIL_API_TOKEN`, and `EMAIL_NOTIFICATIONS_DISABLED` if the flag above is adopted |
+| Keep | `REPORT_RECIPIENT_EMAIL`, `REPORT_PER_HOUR`, `REPORT_PER_DAY` |
+
+`.env.example` should gain all of these — it is currently missing even the ones in use
+(§"Env surface" below).
+
+**Note for the rebrand inventory:** `sender_alias: 'Nightingale'` / `'Nightingale Reports'`
+are brand **text** strings inside these three routes, so they are in scope for the text-side
+rebrand and are not blocked by the asset hold (§3d).
+
 Note: Cloudflare Email Service is transactional-only by policy. All three of these forms
 are transactional, so that constraint is satisfied — but it rules the service out for any
 future newsletter.
