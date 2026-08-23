@@ -67,7 +67,6 @@ export default function RootLayout({
         {/* Preload the welcome-screen poster so it paints before the video downloads */}
         <link rel="preload" href="/olia-welcome.jpg" as="image" />
         <link rel="preload" href="/olia-welcome.mp4" as="video" type="video/mp4" />
-        <script src="https://apps.abacus.ai/chatllm/appllm-lib.js"></script>
         {process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN && process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN !== 'placeholder' && (
           <script
             defer
