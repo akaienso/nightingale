@@ -229,6 +229,8 @@ the page needs a new slug and new brand references, not a new argument.
 
 ### 3b. COSMETIC — safe to change anywhere
 
+Rows marked ⛔ are blocked by the brand-asset hold in §3d — text-only rows may proceed.
+
 No central brand constant exists; the name is hardcoded in 42 files. Consider introducing
 `lib/brand.ts` for the non-i18n call sites, though most occurrences are inside translated
 strings and have to be edited literally.
@@ -238,14 +240,14 @@ strings and have to be edited literally.
 | **i18n strings** | `lib/i18n.ts` (148 "Nightingale", 44 "Olia", 22 Cyrillic `Оля`), `lib/i18n-es.ts` (68 / 42) | Bulk of the work. **`lib/i18n-es.ts` is a third locale that `CLAUDE.md` does not mention.** Top key groups: `site.*` 18, `why.*` 17, `terms.*` 16, `install.*` 16, `dev.*` 15 |
 | **Changelog** | `lib/changelog.ts` (18 / 8) | Also: header comment says every item needs **en, uk AND es** — `CLAUDE.md` says only en+uk and is stale |
 | **Page metadata** | `app/layout.tsx:16,31,44` | `title` / `openGraph` / `twitter`, all three: "Nightingale — Natural Ukrainian for Every Conversation" |
-| **PWA manifest** | `public/manifest.json` | `name`, `short_name`, `description`, both icon `src` paths, `background_color`/`theme_color` `#397A5B` |
-| **Service worker** | `public/sw.js` | 5 refs. **`CACHE_NAME = 'nightingale-v5'` must be bumped**, or returning users keep the old cached logos |
+| **PWA manifest** ⛔ | `public/manifest.json` | `name`, `short_name`, `description`, both icon `src` paths, `background_color`/`theme_color` `#397A5B` |
+| **Service worker** ⛔ | `public/sw.js` | 5 refs. **`CACHE_NAME = 'nightingale-v5'` must be bumped**, or returning users keep the old cached logos |
 | **App components** | `translator-app.tsx` 13, `header.tsx` 5, `live-conversation-mode.tsx` 4, `image-translate-mode.tsx` 4, `loading-overlay.tsx` 2, `help-panel.tsx` 2, plus 6 more with 1 each | |
 | **Static pages** | `app/why-nightingale/page.tsx` 11, `app/site/page.tsx` 8, `terms` 3, `privacy` 3, `changelog` 3, `legal` 2, `about-developer` 2, `auth/login` 2, `auth/signup` 2, `stand-with-ukraine` 1 | |
 | **Model prompts** | `app/api/translate/route.ts:90,101,229`, `app/api/chat/route.ts:29`, `lib/ukrainian-purity.ts:19` | ⚠️ Persona text. `route.ts:101` reads *"you are simply Nightingale"* — the non-chat engine identifies itself by brand name to the model. Rename carefully; this changes model behaviour, not just pixels. **Do not touch Olia / Оля — see the rule below** |
 | **Route + asset path** | `/why-nightingale` → new slug; `public/why-nightingale/` (5 images incl. `hero-nightingale.jpg`); inbound links at `translator-app.tsx:530`, `site/page.tsx:130,423` | Add a redirect from the old path if it has any inbound links |
-| **Image assets** | `public/nightingale-icon{,-light,-192,-512}.png`, `nightingale-wordmark{,-light}.png`, `nightingale-loading.mp4`, `og-image.png`, `favicon.{ico,svg}`, `favicon-{16,32}x{16,32}.png`, `apple-touch-icon.png`, `android-chrome-{192,512}.png` | Referenced 11× (`-icon.png`), 10× (`-icon-light.png`), 4×/4× (wordmarks) |
-| **Palette** | `app/globals.css` — `--primary: 152 32% 33%` (light) / `150 36% 50%` (dark), `--accent: 34 52% 45%` / `36 55% 52%` | Only if the new brand changes colour. Never hardcode; edit the tokens |
+| **Image assets** ⛔ | `public/nightingale-icon{,-light,-192,-512}.png`, `nightingale-wordmark{,-light}.png`, `nightingale-loading.mp4`, `og-image.png`, `favicon.{ico,svg}`, `favicon-{16,32}x{16,32}.png`, `apple-touch-icon.png`, `android-chrome-{192,512}.png` | Referenced 11× (`-icon.png`), 10× (`-icon-light.png`), 4×/4× (wordmarks) |
+| **Palette** ⛔ | `app/globals.css` — `--primary: 152 32% 33%` (light) / `150 36% 50%` (dark), `--accent: 34 52% 45%` / `36 55% 52%` | Only if the new brand changes colour. Never hardcode; edit the tokens |
 | **Docs** | `README.md`, `CLAUDE.md`, `STYLE_GUIDE.md` | |
 
 > ### ⛔ Olia and Оля are out of scope for the rebrand
@@ -272,30 +274,35 @@ strings and have to be edited literally.
 | Turnstile widget domain | Cloudflare dashboard |
 | DNS | Cloudflare — apex A + proxied `app` record |
 
-### 3d. Brand assets — wordmark ready, icons NOT ready ⚠️
+### 3d. Brand assets — ⛔ ALL ON HOLD
 
-`~/workbench/Nightingale/SOLOVEICO/brand/`:
+**Rob, 2026-08-23 (end of day): every visual brand asset is blocked.** He is revising the
+icon, and **the icon is a component of the wordmark**, so the hold is not limited to
+icons — it covers the icon, the wordmark, favicons, app-icon sets, and in-app logo usage.
 
-- **`wordmark/` — ready ✅** `soloveico-wordmark.webp` (light mode) and
-  `soloveico-wordmark-dark-mode.webp` (dark mode), added 2026-08-23, plus the
-  `-light`/`-dark` PNGs and the PSD.
-- **`icon/` — DO NOT SHIP.** Rob is still revising the icons (2026-08-23). Everything
-  currently in that folder, including the misspelled `soleico-mark-*` set, is
-  provisional. Wait for the final set before touching any icon, favicon, PWA manifest
-  icon, or `apple-touch-icon`.
-- `assets/` — `Soloveico-Bird.{psd,webp}`, `soloveico-bubble.{psd,webp}`.
+**Do not, until Rob delivers finals:**
 
-> ⚠️ **Light/dark naming inverts between the brand folder and the repo.** The repo's
-> convention is that `nightingale-wordmark-light.png` is the *light-coloured artwork
-> used on dark backgrounds*, whereas the brand folder's `-dark-mode` suffix names the
-> *mode it is for*. So `soloveico-wordmark-dark-mode.webp` → replaces
-> `nightingale-wordmark-light.png`, and `soloveico-wordmark.webp` → replaces
-> `nightingale-wordmark.png`. Verify visually before wiring them up; this is an easy
-> swap to get backwards, and it shows up as an invisible logo in one theme only.
+- generate any favicon or icon set, at any size
+- wire any brand asset into the app
+- touch `public/manifest.json` icons, the `sw.js` precache list, `apple-touch-icon`,
+  `android-chrome-*`, `favicon.*`, or the wordmark `<Image>` call sites
+- ship anything brand-visual
 
-Sequencing consequence: the wordmark swap can proceed independently, but **the icon
-work is a hard gate on the PWA manifest, `sw.js` precache list, and every favicon
-variant** — those should be done in one pass once the final icons land, not twice.
+**Everything currently in `~/workbench/Nightingale/SOLOVEICO/brand/` is pre-revision
+reference only** — including `wordmark/soloveico-wordmark.webp` and
+`soloveico-wordmark-dark-mode.webp`, which I flagged as "ready" earlier today. They are
+not. Per the handover note, the previously-referenced soloveico webps are Dropbox-stranded
+and superseded. Nothing in that folder is canonical right now.
+
+**What can still proceed:** the text side of the rebrand — name strings, the Olia rule,
+and the domain-shaped classification in §3c. That is §3b minus its last three rows.
+
+When the finals do land, one thing to re-check before wiring anything up: **light/dark
+naming inverts between the two folders.** The repo's convention is that
+`nightingale-wordmark-light.png` is the *light-coloured artwork for dark backgrounds*,
+while the brand folder's `-dark-mode` suffix names the *mode it is for*. Getting this
+backwards produces an invisible logo in exactly one theme. Verify visually, do not infer
+from the filename.
 
 ---
 
@@ -371,18 +378,23 @@ marketing site") is already folded in. It only needs `MARKETING_HOSTS` updated.
 4. **Migration plan step 7** (marketing site) is already satisfied by `middleware.ts` (§4).
 5. **Add to Rob's Abacus prep checklist:** explicitly request `package.json` +
    `yarn.lock` with the zip — the v1.13.3 export omitted them (§0).
-6. **Add to Rob's prep checklist:** the brand assets are PNG/SVG/PSD, not the expected
-   webp trio (§3d).
+6. ~~The brand assets are PNG/SVG/PSD, not the expected webp trio.~~ **Superseded
+   2026-08-23 (end of day):** all brand assets are on hold pending Rob's icon revision,
+   and the handover doc now carries the authoritative status note. Nothing in
+   `SOLOVEICO/brand/` is canonical (§3d).
 
 ---
 
 ## 6. Suggested order of work from here
 
-1. Rob answers the open questions at the end of this doc.
-2. Abacus rebrand runs (cosmetic scope only) → project zip **with manifest** → DB dump →
-   env capture. *(Rob, in the Abacus UI.)*
+1. **Rob's manual prep — not started as of 2026-08-23.** Everything below step 2 is
+   gated on it. Do not act on any of it without asking first.
+2. Abacus rebrand runs (cosmetic scope only, and **text-only** while the asset hold is in
+   force) → project zip **with manifest** → DB dump → env capture. *(Rob, in the Abacus UI.)*
 3. Sync the zip into this repo; diff against `main`; commit. Verify the rebrand against
-   the §3 checklist and close whatever the Abacus agent missed.
+   the §3 checklist and close whatever the Abacus agent missed. **Brand-visual work waits
+   for the finals (§3d) and is a separate pass** — manifest, `sw.js` precache, favicons,
+   app icons and logo call sites should all change together, once.
 4. Strip Abacus: the `layout.tsx` script tag, the `next.config.js` error-reporter block,
    the `.yarnrc.yml` `globalFolder` line, and the three email routes → Cloudflare Email
    Sending (§2). Onboard `solovei.co.ua` for both sending and routing first.
@@ -407,13 +419,16 @@ rebrand needs **en, uk and es** text for every item.
 2. ~~Does Olia stay Olia?~~ **Yes, and Оля stays Оля — never convert between them.** See
    the rule box in §3b.
 3. ~~Email provider?~~ **Cloudflare Email Sending**, REST API. See §2.
-4. ~~The `.webp` brand files?~~ **Wordmark is ready** (both modes, 2026-08-23).
-   **Icons are still being revised — do not ship any icon yet.** See §3d.
+4. ~~The `.webp` brand files?~~ **All brand assets are ON HOLD** — the icon is a
+   component of the wordmark, so the whole visual set is blocked until Rob delivers
+   finals. Text-side rebrand work may proceed. See §3d.
+5. ~~Which prep-checklist items are done?~~ **None.** Every item is Rob's manual prep in
+   Abacus / Cloudflare / Google Console and none has been started. The only completed
+   pre-work is what the handover doc already records: the 2026-08-23 conversation export,
+   the Prisma output-path fix, and the docs themselves.
 
 **Still open:**
 
-5. **Which prep-checklist items are done?** Rob is reviewing the checklist and will
-   report back. Nothing on it has been acted on.
 6. **Which Cloudflare account holds the `solovei.co.ua` zone?** Determines where Email
    Sending is onboarded and how the API token is scoped. See §2.
 7. **Email Routing for the six inbound mailboxes** — needs setting up alongside sending,
