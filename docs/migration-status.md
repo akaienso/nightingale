@@ -70,6 +70,11 @@ either route:
 The second is cleaner and is safe here precisely because the drift was measured — but it
 rewrites `yarn.lock`, so it is **Rob's call**, not a change to make in passing.
 
+> **RESOLVED (Rob, 2026-08-23): second route approved.** Pick the current Yarn 4.x
+> deliberately, regenerate `yarn.lock` once with it, commit both, and pin it via
+> `"packageManager"` in `package.json`. Approved on the strength of the measured
+> format-only drift.
+
 ---
 
 ## 1. Goal 1 — orientation, `prisma generate`, typecheck
@@ -214,7 +219,7 @@ Add `CF_ACCOUNT_ID` and `CF_EMAIL_API_TOKEN`. Keep `REPORT_RECIPIENT_EMAIL`.
    in code and copy — `hello@`, `support@`, `reports@`, `olia@`, `privacy@`, `legal@` —
    and every one of them needs to actually *receive* on `solovei.co.ua`. That is
    **Email Routing**, a separate setup (`wrangler email routing enable`), with verified
-   destination addresses. Worth doing in the same sitting; otherwise the contact form
+   destination addresses. **RESOLVED (Rob, 2026-08-23): all project domains (nightingale.im, solovei.co.ua) are managed in the RMoore.dev Cloudflare account; the solovei.co.ua zone already exists there. Email Routing setup (enable, verify destination, six custom addresses) is Rob's dashboard task, safe to do pre-cutover.** Worth doing in the same sitting; otherwise the contact form
    sends successfully to an address that silently drops the mail.
 
 #### Concrete plan — files, functions, env
