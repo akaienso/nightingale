@@ -219,7 +219,7 @@ Add `CF_ACCOUNT_ID` and `CF_EMAIL_API_TOKEN`. Keep `REPORT_RECIPIENT_EMAIL`.
    in code and copy — `hello@`, `support@`, `reports@`, `olia@`, `privacy@`, `legal@` —
    and every one of them needs to actually *receive* on `solovei.co.ua`. That is
    **Email Routing**, a separate setup (`wrangler email routing enable`), with verified
-   destination addresses. **RESOLVED (Rob, 2026-08-23): all project domains (nightingale.im, solovei.co.ua) are managed in the RMoore.dev Cloudflare account; the solovei.co.ua zone already exists there. Email Routing setup (enable, verify destination, six custom addresses) is Rob's dashboard task, safe to do pre-cutover.** Worth doing in the same sitting; otherwise the contact form
+   destination addresses. **RESOLVED (Rob, 2026-08-23): all project domains (nightingale.im, solovei.co.ua) are managed in the RMoore.dev Cloudflare account; the solovei.co.ua zone already exists there. Email Routing: **DONE** (Rob, 2026-08-23) — custom routes exist including `olia@`, and the catch-all forwards to Rob's inbox, so nothing on `solovei.co.ua` bounces; unrouted addresses degrade gracefully to Rob. Receiving is no longer a cutover dependency; only Email **Sending** onboarding (SPF/DKIM/DMARC per §2) remains, at implementation time.** Worth doing in the same sitting; otherwise the contact form
    sends successfully to an address that silently drops the mail.
 
 #### Concrete plan — files, functions, env
