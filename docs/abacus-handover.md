@@ -2,6 +2,12 @@
 
 **Date:** 2026-08-23 · **Performed by:** claude-cowork, at Rob's direction
 
+> **Read `docs/migration-status.md` alongside this doc.** The first Claude Code session
+> verified this plan against the code and found several items here to be out of date —
+> most importantly, **the AI provider switch to direct Anthropic is already done** (the
+> real Abacus coupling is transactional email), and **the repo has no `package.json`**.
+> Corrections are listed in §5 of that doc.
+
 Nightingale development moved from Abacus AI Desktop (CodeLLM VM sandbox) to Claude Code. This note records what was migrated, what changed in the repo, and where the salvaged Abacus material lives.
 
 ## What changed in this repo
@@ -101,9 +107,18 @@ psql "$NEW_DATABASE_URL" -c "SELECT relname, n_live_tup FROM pg_stat_user_tables
 ### Env capture runbook
 
 From the Abacus deployment config, copy the **production values** of every variable in `.env.example` into a password manager (Bitwarden) entry — not into a file in this repo:
-`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `ABACUSAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AWS_REGION`, `AWS_BUCKET_NAME`, `AWS_FOLDER_PREFIX`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_CF_ANALYTICS_TOKEN`, `NOTIF_ID_WEBSITE_INQUIRY`, `NOTIF_ID_TUTORING_INQUIRY`.
+`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `ABACUSAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AWS_REGION`, `AWS_BUCKET_NAME`, `AWS_FOLDER_PREFIX`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_CF_ANALYTICS_TOKEN`, `NOTIF_ID_WEBSITE_INQUIRY`, `NOTIF_ID_TUTORING_INQUIRY`,
+`WEB_APP_ID`, `NOTIF_ID_CONTENT_REPORT`, `REPORT_RECIPIENT_EMAIL`.
 
-Also confirm in code whether AI calls go through `ABACUSAI_API_KEY` (RouteLLM) — that key dies with the account. Switch the AI provider path to direct Anthropic (`ANTHROPIC_API_KEY`) before cutover and test translate/chat.
+(The last three were added 2026-08-23 after grepping the code: `app/api/report/route.ts` needs
+them and the original 15-variable list missed them.)
+
+~~Also confirm in code whether AI calls go through `ABACUSAI_API_KEY` (RouteLLM)…~~
+**Resolved 2026-08-23 — they do not.** All AI calls already go direct to
+`api.anthropic.com/v1/messages` via `lib/anthropic.ts` using `ANTHROPIC_API_KEY`. No provider
+switch is needed. `ABACUSAI_API_KEY` is used as the `deployment_token` for Abacus's
+**notification-email** API in `app/api/{contact,report,tutoring-inquiry}/route.ts` — those three
+forms are what breaks at cancellation. See `docs/migration-status.md` §2.
 
 Independent of Abacus (no action needed): S3 uploads bucket (AWS), Turnstile + web analytics (Cloudflare), Google OAuth client itself, the domain/DNS.
 
@@ -126,7 +141,9 @@ Independent of Abacus (no action needed): S3 uploads bucket (AWS), Turnstile + w
 - [ ] Open session 15 and answer the agent's five rebrand questions (new name, domain intent, Olia's name, upload soloveico wordmark/icon files, other changes). State explicitly: **cosmetic scope only — do not touch domain config, `NEXTAUTH_URL`, OAuth, or Turnstile.**
 - [ ] Let the rebrand run, then smoke-test the deployed app: login, translate, chat, upload.
 - [ ] Have the agent bump version + changelog (per session 12's discipline).
-- [ ] Request the **full project zip export** and download it.
+- [ ] Request the **full project zip export** and download it. **Explicitly ask the agent to
+      include `package.json` and `yarn.lock`** — the 2026-08-21 `nightingale-v1.13.3.zip` export
+      contained neither, and they are not in the git repo either. This blocks any build.
 - [ ] In the same session, have the agent run the `pg_dump` command from the DB runbook *from inside the environment* and save the dump into the project files; download it (covers the internal-only DB host case).
 - [ ] Copy **every** production env value from the deployment config into Bitwarden (15-variable list in the env-capture runbook). `DATABASE_URL` is the one that cannot be reconstructed later.
 - [ ] Check the deployments/apps list for anything else running on Abacus (account also has ServiceSelfies and UARTF projects) — anything deployed dies at cancellation.
