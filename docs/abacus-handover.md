@@ -136,6 +136,8 @@ Independent of Abacus (no action needed): S3 uploads bucket (AWS), Turnstile + w
 
 ## Rob's pre-cutover prep (manual, in Abacus + Cloudflare — nothing here switches traffic)
 
+**Status 2026-08-23 (end of day):** no checklist items completed yet — all still open. **Icon assets are ON HOLD**: Rob is revising the icon; do not generate icon sets or wire icon assets into the app until he delivers finals. For brand files, the PNG/SVG/PSD set in SOLOVEICO/brand/ is canonical; the three soloveico webps referenced earlier are Dropbox-stranded and superseded.
+
 ### Abacus web UI
 
 - [ ] Open session 15 and answer the agent's five rebrand questions (new name, domain intent, Olia's name, upload soloveico wordmark/icon files, other changes). State explicitly: **cosmetic scope only — do not touch domain config, `NEXTAUTH_URL`, OAuth, or Turnstile.**
