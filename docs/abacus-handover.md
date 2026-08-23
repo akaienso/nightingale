@@ -117,3 +117,33 @@ Independent of Abacus (no action needed): S3 uploads bucket (AWS), Turnstile + w
 6. Cutover: set `NEXTAUTH_URL`, Google OAuth redirect URIs, Turnstile domain for the new origin (and new domain, if the rebrand domain is ready); repoint DNS in Cloudflare (app subdomain origin + apex); verify login, translate, chat, and upload flows in production
 7. Rehost or fold in the marketing site (currently Abacus-hosted at the apex)
 8. **Only then: cancel Abacus**
+
+
+## Rob's pre-cutover prep (manual, in Abacus + Cloudflare — nothing here switches traffic)
+
+### Abacus web UI
+
+- [ ] Open session 15 and answer the agent's five rebrand questions (new name, domain intent, Olia's name, upload soloveico wordmark/icon files, other changes). State explicitly: **cosmetic scope only — do not touch domain config, `NEXTAUTH_URL`, OAuth, or Turnstile.**
+- [ ] Let the rebrand run, then smoke-test the deployed app: login, translate, chat, upload.
+- [ ] Have the agent bump version + changelog (per session 12's discipline).
+- [ ] Request the **full project zip export** and download it.
+- [ ] In the same session, have the agent run the `pg_dump` command from the DB runbook *from inside the environment* and save the dump into the project files; download it (covers the internal-only DB host case).
+- [ ] Copy **every** production env value from the deployment config into Bitwarden (15-variable list in the env-capture runbook). `DATABASE_URL` is the one that cannot be reconstructed later.
+- [ ] Check the deployments/apps list for anything else running on Abacus (account also has ServiceSelfies and UARTF projects) — anything deployed dies at cancellation.
+- [ ] Note the billing renewal date (= real deadline). Confirm no project-attached artifacts/files were missed by the 2026-08-23 conversation export.
+
+### Cloudflare
+
+- [ ] `nightingale.im` zone → export the DNS zone file; save to `/Volumes/rmoore-dev/abacus-archive-2026-08-23/` as the documented "before" state.
+- [ ] Confirm and note the Abacus-pointing records: apex A `66.71.220.11`, and the origin behind the proxied `app` record.
+- [ ] If the rebrand brings a new domain: register it and add its zone to Cloudflare **now** (NS propagation finishes before cutover day). Add no records yet.
+- [ ] Day before cutover: drop TTL on the unproxied apex record to 5 min (proxied records don't need it).
+
+### Google Cloud Console
+
+- [ ] Screenshot the Nightingale OAuth client's current authorized redirect URIs (exact list needed when adding the new origin).
+- [ ] Delete the retired rushomon OAuth client (its secret was scrubbed from git history 2026-08-23; the client is dead weight).
+
+### Hand-back to Claude Code
+
+- [ ] Give the project zip + DB dump to the code session: unzip, diff against `akaienso/nightingale`, commit the rebrand changes, stash the dump in the archive folder. Then the Migration plan (above) proceeds from step 2.
