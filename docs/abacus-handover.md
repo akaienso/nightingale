@@ -106,6 +106,18 @@ psql "$NEW_DATABASE_URL" -c "SELECT relname, n_live_tup FROM pg_stat_user_tables
 
 ### Env capture runbook
 
+> **Status (Rob, 2026-08-23):** UI harvest done. Eight values are hidden as "Reserved" in the
+> Abacus UI; `NEXTAUTH_URL` does not exist there at all. Triage: `ABACUSAI_API_KEY`, `WEB_APP_ID`,
+> and `NEXTAUTH_URL` are NOT needed (removed by the email rewrite / set fresh on the new host).
+> `NEXTAUTH_SECRET` is optional — rotating it at cutover only forces a one-time re-login.
+> `DATABASE_URL` and the three `AWS_*` values are being captured via the in-environment agent
+> (printenv to `secrets-capture.txt` in project files), which bypasses the UI redaction.
+> ⚠️ OPEN QUESTION: the `AWS_*` values being "Reserved" suggests the S3 uploads bucket may be
+> **Abacus-provisioned, not Rob's AWS** — contradicting the "independent of Abacus, no action"
+> line below. The agent has been asked to confirm ownership and, if Abacus-owned, to copy all
+> objects under the prefix into the project files before cancellation. Do not treat uploads as
+> safe until that answer is recorded here.
+
 From the Abacus deployment config, copy the **production values** of every variable in `.env.example` into a password manager (Bitwarden) entry — not into a file in this repo:
 `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `ABACUSAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AWS_REGION`, `AWS_BUCKET_NAME`, `AWS_FOLDER_PREFIX`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_CF_ANALYTICS_TOKEN`, `NOTIF_ID_WEBSITE_INQUIRY`, `NOTIF_ID_TUTORING_INQUIRY`,
 `WEB_APP_ID`, `NOTIF_ID_CONTENT_REPORT`, `REPORT_RECIPIENT_EMAIL`.
