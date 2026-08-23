@@ -124,7 +124,7 @@ psql "$NEW_DATABASE_URL" -c "SELECT relname, n_live_tup FROM pg_stat_user_tables
 > tables with data) and `uploads-rescue/public/reports/` (6 user report images, 505,515 bytes,
 > S3-to-local counts and bytes match). The root `Uploads/` folder proved to be brand/design assets,
 > not the bucket. Rob downloads both to `/Volumes/rmoore-dev/abacus-archive-2026-08-23/`; local
-> restorability check pending. ⚠️ The dump contains real user data (accounts, session tokens, chat
+> restorability check PASSED (2026-08-23 16:30 — pg_restore --list on the Mac shows 8/8 tables with data; uploads-rescue.zip 6 files / 505,515 bytes exact match). Full session-15 workspace zip also downloaded; DNS zone exports captured for BOTH nightingale.im and solovei.co.ua. Every irreplaceable Abacus-held asset is now local and verified — remaining before cancellation: the cosmetic rebrand run (blocked on the icon), the post-rebrand export/diff, and the migration itself. ⚠️ The dump contains real user data (accounts, session tokens, chat
 > history) — keep it off synced/public storage; move to the encrypted NVMe when that lands. The new
 > host still needs its own object storage (R2) with the 6 report images re-seeded and upload code
 > repointed.
