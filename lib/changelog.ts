@@ -30,10 +30,13 @@ export const APP_VERSION = '1.13.3'; // x-release-please-version
  *
  * Set to null to return to the default feature-release-only behavior.
  */
-export const WHATS_NEW_OVERRIDE: { force: boolean; featureVersion: string } | null = {
-  force: true,
-  featureVersion: '1.13.3',
-};
+// Currently null, deliberately (2026-08-23). 1.13.4 is a patch that restores
+// behavior the app already promised — per the semver policy in
+// docs/CONTRIBUTING.md, that is a fix, and a forced full-screen tour announcing
+// it would sit badly against "this was always supposed to work". Set this again
+// when there is a genuinely new capability worth touring, which by definition
+// means a minor or major release.
+export const WHATS_NEW_OVERRIDE: { force: boolean; featureVersion: string } | null = null;
 
 /** The "feature" portion of a version string, i.e. major.minor (ignores patch). */
 export function featureKey(version: string): string {
