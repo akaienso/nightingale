@@ -67,6 +67,44 @@ docs: add the cutover runbook
 ```
 
 No AI/assistant attribution in commit messages or PR bodies — see `CLAUDE.md`.
+### `fix:` vs `feat:` — project policy
+
+Choosing between these is a judgement about **what was promised**, not about how much
+code was written. Rob's ruling, which is project policy:
+
+> **Restoring or completing behavior the app already promised is `fix:`, even when it adds
+> UI. `feat:` is reserved for capabilities never promised before.**
+>
+> **When commit history disagrees with Rob's ruling, use a `Release-As:` footer rather
+> than rewriting history.**
+
+The worked example: the history panel shipped in 1.13.x advertising click-to-open,
+which never worked. Wiring it up added a few hundred lines and several new controls — and
+it is still a **`fix:`**, released as **1.13.4**, because users were already promised it.
+Size is not the test; the promise is.
+
+Practical consequences:
+
+- A partly-implemented feature being finished is `fix:`. A dead button made live is `fix:`.
+- A capability nobody was ever offered is `feat:` — even a small one.
+- If you are unsure, ask rather than guessing. The version number is user-visible and
+  hard to walk back once released.
+
+### Overriding the computed version
+
+release-please derives the bump from commit types. When that math disagrees with the
+ruling above and the commits are already merged to a protected branch, **do not rewrite
+history** — add an empty commit carrying a `Release-As:` footer:
+
+```bash
+git commit --allow-empty -m "chore: release as 1.13.4" -m "Release-As: 1.13.4"
+```
+
+release-please honours that footer over its own commit-type math, and the release PR it
+opens will propose exactly that version. This is the supported escape hatch and leaves the
+history intact and auditable — the original commit type stays visible, and the override
+sits beside it with its reason.
+
 
 ## Two changelogs, two audiences, two triggers
 
