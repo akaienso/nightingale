@@ -141,7 +141,16 @@ see `.env.example` for the full annotated surface.
 | `MAIL_DOMAIN` | `nightingale.im` |
 | `CF_ACCOUNT_ID` | `5d39aea8832f48a8dc808afd97d9a29c` |
 | `CF_EMAIL_API_TOKEN` | step 4 |
-| `R2_*` | step 5 — see `docs/r2-setup.md` |
+| `R2_BUCKET_NAME` | `nightingale-uploads` |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Bitwarden (bucket-scoped token) |
+| `R2_PUBLIC_BASE_URL` | Bitwarden — the r2.dev Public Development URL, **no trailing slash** |
+| `R2_ACCOUNT_ID` | leave unset — falls back to `CF_ACCOUNT_ID` |
+| `R2_FOLDER_PREFIX` | **leave empty** — see below |
+
+`R2_FOLDER_PREFIX` stays empty deliberately. The code composes keys as
+`${folderPrefix}public/reports/…`, so an empty prefix yields `public/reports/…`, which is
+exactly the layout the six rescued objects were archived under. Setting a prefix now would
+put new uploads somewhere the rescued files are not.
 
 `MAIL_FROM`, `MAIL_FROM_NAME`, and the three `*_RECIPIENT_EMAIL` overrides can stay unset;
 they default off `MAIL_DOMAIN`.
@@ -189,11 +198,19 @@ Then create an API token with email-sending permission scoped to the RMoore.dev 
 Note `wrangler login` needs a **local** browser and a localhost callback. Safari's
 HTTPS-Only mode blocks that — use `--browser=false` and paste the URL into Chrome.
 
-## 5. R2 — object storage
+## 5. R2 — object storage ✅ DONE 2026-08-23
 
-Full runbook in **`docs/r2-setup.md`**. Cowork can create the bucket in the RMoore.dev
-account on request. Short version: create bucket → enable public access (custom domain or
-r2.dev) → bucket-scoped S3 API token → set the six `R2_*` variables.
+Bucket `nightingale-uploads` created in the RMoore.dev account (ENAM) by Cowork via the
+API. Public Development URL enabled; bucket-scoped **Object Read & Write** token created.
+Public base URL, Access Key ID and Secret are in Bitwarden.
+
+Full reference in **`docs/r2-setup.md`**.
+
+> **Phase-2 item, not a blocker:** the r2.dev Public Development URL is rate-limited by
+> Cloudflare and explicitly not intended for production traffic. Fine for cutover and
+> verification; bind a custom domain (e.g. `uploads.nightingale.im`) when there is slack,
+> and change `R2_PUBLIC_BASE_URL` to match. Nothing else changes — the code reads that one
+> variable.
 
 Re-seeding the six rescued images is **optional and archival** — no object URL is stored
 in the database, so it repairs nothing. Details in that doc.
