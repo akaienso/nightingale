@@ -74,7 +74,7 @@ export interface Release {
 // Newest first.
 export const CHANGELOG: Release[] = [
   {
-    version: '1.14.0',
+    version: '1.13.4',
     date: '2026-08-23',
     items: [
       {
