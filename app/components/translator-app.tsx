@@ -89,6 +89,12 @@ export default function TranslatorApp() {
   // clicking your name in the header jumps straight to the profile block).
   const [settingsScrollTarget, setSettingsScrollTarget] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // An entry picked from the history panel, handed down to TwoPanelMode. The
+  // nonce makes re-picking the SAME entry a distinct value, so the effect that
+  // consumes it fires again instead of being skipped as unchanged.
+  const [loadedEntry, setLoadedEntry] = useState<
+    { nonce: number; sourceText: string; translation: string; culturalNote: string | null } | null
+  >(null);
   const [settings, setSettings] = useState<TranslationSettings>(DEFAULT_SETTINGS);
   const [mounted, setMounted] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
@@ -357,6 +363,27 @@ export default function TranslatorApp() {
     setSettings((prev: TranslationSettings) => ({ ...(prev ?? {}), ...(updates ?? {}) }));
   }, []);
 
+  // Load a saved translation back into the two-panel translator.
+  //
+  // Restores source, translation and direction only. Dialect, formality and
+  // output style are deliberately NOT restored: they are live preferences, and
+  // silently rewriting them from an old entry would change the next translation
+  // the user runs without them asking for it.
+  const handleHistorySelect = useCallback((entry: {
+    sourceText: string; translation: string; culturalNote: string | null; direction: string;
+  }) => {
+    if (entry?.direction === 'en-to-ua' || entry?.direction === 'ua-to-en') {
+      updateSettings({ direction: entry.direction });
+    }
+    setMode('panel');
+    setLoadedEntry({
+      nonce: Date.now(),
+      sourceText: entry?.sourceText ?? '',
+      translation: entry?.translation ?? '',
+      culturalNote: entry?.culturalNote ?? null,
+    });
+  }, [updateSettings]);
+
   const toggleDirection = useCallback(() => {
     setSettings((prev: TranslationSettings) => ({
       ...(prev ?? {}),
@@ -550,6 +577,7 @@ export default function TranslatorApp() {
               onToggleDirection={toggleDirection}
               onSaveHistory={saveToHistory}
               onUpdate={updateSettings}
+              loadEntry={loadedEntry}
             />
           ) : mode === 'chat' ? (
             <ChatMode
@@ -576,6 +604,7 @@ export default function TranslatorApp() {
       <HistoryPanel
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
+        onSelect={handleHistorySelect}
       />
 
       <ReportDialog

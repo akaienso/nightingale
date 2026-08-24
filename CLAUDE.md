@@ -65,7 +65,19 @@ Standard NextAuth tables (`User`, `Account`, `Session`, `VerificationToken`) plu
 `lib/i18n.ts` holds the EN/UK dictionary and the `translate` helper, and `lib/i18n-es.ts` holds the Spanish one; `components/i18n-provider.tsx` exposes `useI18n()` (`t`, `lang`, `setLang`). UI language is separate from translation direction, and it controls which language cultural notes are written in.
 
 ### Changelog / versioning
-`lib/changelog.ts` is the single source of app version (`APP_VERSION`) and the `CHANGELOG` array (rendered at `/changelog`). Every changelog item needs `en`, `uk` **and `es`** text. Bump `APP_VERSION` (semver) and prepend a release when shipping user-facing changes.
+There are **two** changelogs. See `docs/CONTRIBUTING.md` for the full model.
+
+- `CHANGELOG.md` + GitHub Releases — **developer-facing, owned by release-please**, written
+  automatically from conventional commits on every release.
+- `lib/changelog.ts` — **user-facing**, rendered at `/changelog`. Add an entry only when a
+  release changes what users experience; skip it entirely for dependency bumps, refactors
+  and infra. Every item needs `en`, `uk` **and `es`** text, and the Ukrainian is reviewed by
+  Rob before merge.
+
+**Do not hand-edit `APP_VERSION`.** release-please owns it via the
+`// x-release-please-version` annotation on that line, keeping it in step with
+`package.json`. Because dev-only releases get no in-app entry, the user-facing log will
+legitimately skip version numbers — that is correct, not an omission.
 
 ## UI conventions
 
@@ -102,5 +114,12 @@ care applies to all Ukrainian text in this repo: preserve it exactly.
 
 Per global instructions: company is **Member Minder Pro, LLC** (three words, never "MemberMinder"). No AI/Claude attribution in any commits or PRs.
 
-This project **is** a git repository — `github.com/akaienso/nightingale`, branch `main`. (An
-earlier note here said otherwise; that was true only while the code lived in the Abacus VM.)
+This project **is** a git repository — `github.com/akaienso/nightingale`. (An earlier note
+here said otherwise; that was true only while the code lived in the Abacus VM.)
+
+**Branch flow — read `docs/CONTRIBUTING.md` before committing.** `feature/*` → PR →
+`develop` (beta) → PR → `main` (**production**). `main` is not a working branch and not
+"push to deploy": a merge to `main` ships to users. Direct pushes to both protected
+branches are blocked. **Conventional Commits are required** on everything mergeable —
+release-please derives the version and changelog from them, so a non-conforming commit is
+invisible to the release.

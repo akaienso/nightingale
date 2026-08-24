@@ -19,9 +19,14 @@ type Step = {
   bodyKey: string;
 };
 
-// The mini feature tour for the current release (v1.13.3): the new navigation
-// controls and the improved translation quality, wrapped with an intro and a
-// closing panel that links to the full changelog.
+// The mini feature tour: an intro, the feature panels, and a closing panel that
+// links to the full changelog.
+//
+// Do NOT name a version here or in the copy. The version shown comes from
+// DISPLAY_VERSION below and is interpolated into `whatsnew.intro.body` as
+// {version}; hardcoding it anywhere means it goes stale on the next release.
+// The tour CONTENT, however, is written by hand and must be revised when the
+// features it showcases are no longer the newest ones.
 const STEPS: Step[] = [
   { icon: 'sparkles', titleKey: 'whatsnew.intro.title', bodyKey: 'whatsnew.intro.body' },
   { icon: 'nav', titleKey: 'whatsnew.nav.title', bodyKey: 'whatsnew.nav.body' },
@@ -124,7 +129,7 @@ export default function WhatsNewDialog({ open, onClose, onOpenSettings }: WhatsN
           <div className="px-6 pt-5 pb-6 space-y-4">
             <div className="space-y-2 text-center">
               <h3 className="font-display font-semibold text-lg leading-tight">{t(current.titleKey)}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{t(current.bodyKey)}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{t(current.bodyKey, { version: DISPLAY_VERSION })}</p>
             </div>
 
             {/* Closing panel: prominent link to the full changelog history. */}
