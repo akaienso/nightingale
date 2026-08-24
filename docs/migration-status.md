@@ -630,7 +630,7 @@ static pages, and `lib/changelog.ts` were not touched by the migration work.
 
 Executed same-domain, per Rob's decisions:
 
-- Host: Vercel (`robs-projects` team, Pro — Rob's deliberate upgrade), project `nightingale`, deploying `akaienso/nightingale@main`
+- Host: Vercel (`robs-projects` team, Pro — Rob's deliberate upgrade), project `nightingale`, deploying `akaienso/nightingale@main` as **production**, with `develop` as the **beta** deployment (see `docs/CONTRIBUTING.md`)
 - DB: Neon (`neondb`, US East 2), restored + verified 8/8 tables, 133 users; app runs on the pooled endpoint
 - Storage: R2 `nightingale-uploads` (RMoore.dev account), public dev URL enabled, bucket-scoped token
 - Domains: **www-primary by Rob's preference** — apex 308→www; `www` serves the marketing rewrite (middleware already listed both hosts); `app` serves the app. All three CNAME → `fd1ff11241099797.vercel-dns-016.com`, DNS-only, in the Cloudflare zone. Fastmail/MX untouched. Legacy `www.app.nightingale.im` A-record left in place (Rob's call to delete).

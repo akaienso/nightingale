@@ -155,7 +155,7 @@ Independent of Abacus (no action needed): S3 uploads bucket (AWS), Turnstile + w
 2. DB dump + env capture done per runbooks above
 3. Stand up new Postgres (Neon/Supabase, or Hyperdrive-fronted if going Cloudflare); restore dump; verify row counts match
 4. Pick host: **Vercel** (least friction for Next.js 14 App Router + Prisma) or **Cloudflare Workers** via `@opennextjs/cloudflare` (keeps everything in the existing CF account; more build work, Prisma needs driver adapters). Deploy from `akaienso/nightingale`
-5. Deployment workflow: GitHub Actions on push to `main` — typecheck (`tsc` fails builds; lint doesn't), build, deploy, `prisma migrate` step. Preview deploys per PR if Vercel
+5. ~~Deployment workflow: GitHub Actions on push to `main`…~~ **Superseded 2026-08-23** by the MMP release workflow: `feature/*` → PR → `develop` (beta) → PR → `main` (production), with release-please cutting releases on `main`. See `docs/CONTRIBUTING.md`.
 6. Cutover: set `NEXTAUTH_URL`, Google OAuth redirect URIs, Turnstile domain for the new origin (and new domain, if the rebrand domain is ready); repoint DNS in Cloudflare (app subdomain origin + apex); verify login, translate, chat, and upload flows in production
 7. Rehost or fold in the marketing site (currently Abacus-hosted at the apex)
 8. **Only then: cancel Abacus**
