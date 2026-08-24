@@ -643,3 +643,14 @@ Executed same-domain, per Rob's decisions:
 3. At the rebrand, the split executes: WordPress marketing on the (new) apex/www, app on `app.` No agent re-decides this.
 
 **Post-cutover punch list (phase 2):** email sending onboarding + `CF_EMAIL_API_TOKEN` (forms currently error, accepted), rotate `NEXTAUTH_SECRET` + Neon password (values passed through AI transcripts during the sprint), PDF-preview thumbnail card, `max_tokens: 3000` extraction ceiling, Prisma explicit output before v7, WordPress marketing site, rebrand to Soloveico, delete Abacus OAuth-era `www.app` DNS record, cancel-Abacus confirmation (subscription already cancelled, service lapses at period end).
+
+
+## Email complete — 2026-08-24 (Rob + Cowork)
+
+- Fastmail is defunct; mail to @nightingale.im had been silently dying against dead MX records. Rob swept all Fastmail DNS (MX, DKIM CNAMEs, SRV) and enabled **Cloudflare Email Routing**: olia@ / tutor@ / olivka.sakara@ → Olia's Gmail, catch-all → io@rmoore.dev. MX now route1–3.mx.cloudflare.net; SPF is a single record, `v=spf1 include:_spf.mx.cloudflare.net ~all`.
+- Rob activated the Workers Paid plan ($5/mo — the Email Sending billing gate) and onboarded nightingale.im to **Email Sending**: bounce-domain MX, DKIM published, and DMARC upgraded to `p=reject` — only Cloudflare-signed mail passes as the domain now.
+- Token `nightingale-email-sending` (Email Sending Write only, account-scoped, no expiry) → Vercel `CF_EMAIL_API_TOKEN` (Production + Preview), redeployed.
+- **Verified end-to-end:** POST `/api/contact` on production returned `{"success":true}` and delivered through the new pipeline. All three forms are live.
+- Note: this plan also exposes an SMTP endpoint if a future tool (e.g. the WordPress marketing site) needs one; the app stays on the REST API.
+
+**Punch list:** email item CLOSED. Remaining: credential rotation (NEXTAUTH_SECRET, Neon password), PDF preview-thumbnail card, `max_tokens` extraction ceiling, Prisma explicit `output`, WordPress marketing site + Soloveico rebrand (blocked on icon), delete legacy `www.app` DNS record, confirm Abacus lapse.
