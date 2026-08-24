@@ -131,7 +131,7 @@ export const es: Dict = {
   'whatsnew.versionLink': 'Novedades en v{version}',
   'whatsnew.fullEvolution': 'Ve la evolución completa de Nightingale',
   'whatsnew.intro.title': 'Novedades en Nightingale',
-  'whatsnew.intro.body': 'La versión 1.13.3 trae una navegación más fluida y traducciones notablemente más naturales y auténticas. Dedica unos segundos a ver los cambios.',
+  'whatsnew.intro.body': 'La versión {version} trae una navegación más fluida y traducciones notablemente más naturales y auténticas. Dedica unos segundos a ver los cambios.',
   'whatsnew.nav.title': 'Muévete más rápido',
   'whatsnew.nav.body': 'Los nuevos controles de salto en el Chat te permiten ir al inicio o al final de una conversación y moverte entre mensajes, y en el teléfono, un práctico botón te lleva directamente a la traducción.',
   'whatsnew.quality.title': 'Traducciones más naturales y auténticas',
