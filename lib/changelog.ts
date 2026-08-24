@@ -11,7 +11,7 @@
 // NOTE: The dates on the earlier (backfilled) releases are approximate
 // reconstructions of when each feature shipped and can be adjusted freely.
 
-export const APP_VERSION = '1.13.3';
+export const APP_VERSION = '1.13.3'; // x-release-please-version
 
 /**
  * MANUAL "What's New" OVERRIDE.
