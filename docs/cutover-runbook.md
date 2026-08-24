@@ -44,6 +44,13 @@ marketing site comes along for free. Nothing extra to host.
 > ⚠️ **Restore over the direct URL, not the pooled one.** The pooler runs in transaction
 > mode, which breaks `pg_restore`'s session-level operations in confusing, partial ways.
 > Serve traffic pooled; do surgery direct.
+>
+> **Correction (2026-08-23):** Neon's console now issues **one** string, and it is the
+> **direct** one — there is no `-pooler` in the hostname to remove. The pooled endpoint is
+> derived by **adding** `-pooler` to the endpoint id:
+> `ep-<id>-pooler.<rest>`. Both hostnames were confirmed to resolve. So the derivation runs
+> the opposite way from what the console implies: restore over the string as issued, and
+> add `-pooler` for the runtime `DATABASE_URL`.
 
 Both need `?sslmode=require`.
 
@@ -72,16 +79,35 @@ psql "$DIRECT" -c '\dt'
 Expect all 8 tables: `Account`, `ChatConversation`, `ChatMessage`, `RateLimit`,
 `Session`, `TranslationHistory`, `User`, `VerificationToken`. Record the counts here:
 
+**✅ RESTORED AND VERIFIED 2026-08-23.** Target: Neon project `neondb`, PostgreSQL 18.6,
+`us-east-2`. `pg_restore` completed with zero errors.
+
 | Table | Rows |
 |---|---|
-| Account | |
-| ChatConversation | |
-| ChatMessage | |
-| RateLimit | |
-| Session | |
-| TranslationHistory | |
-| User | |
-| VerificationToken | |
+| Account | 2 |
+| ChatConversation | 24 |
+| ChatMessage | 88 |
+| RateLimit | 103 |
+| Session | 0 |
+| TranslationHistory | 379 |
+| User | 133 |
+| VerificationToken | 0 |
+
+Counts are `SELECT count(*)`, not `n_live_tup` estimates. `Session` and
+`VerificationToken` being empty is expected and correct — sessions are JWT, so the table is
+vestigial, and verification tokens are short-lived.
+
+Structure also checked: **8/8 tables, 17 indexes, 5 foreign keys.**
+
+**Schema matches `prisma/schema.prisma`** — verified with `prisma db pull --print`. The only
+diffs are field ordering and `@db.Text` attributes that `db pull` omits because `text` is
+already Prisma's default mapping for `String` on PostgreSQL. Confirmed against
+`information_schema`: every string column is `text`, and there is not one `varchar` in the
+database. **No `db push` was run and none is needed.**
+
+Final check — the app's own Prisma client against the restored data: 133 users, 379
+translations, 24 conversations, 131 credentials users, 2 Google-linked accounts, sample row
+readable.
 
 If `n_live_tup` reads 0 on a table you know has rows, run `ANALYZE;` — it is a stats
 estimate, not a count. `SELECT count(*)` is the authority.
