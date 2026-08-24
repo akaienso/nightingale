@@ -623,3 +623,23 @@ static pages, and `lib/changelog.ts` were not touched by the migration work.
    is in an MMP account rather than `RMoore.dev`, the cutover gains a zone-move step and
    the two domains are briefly split across accounts. Worth confirming in the dashboard
    while doing the DNS-export prep item.
+
+---
+
+## Cutover record — 2026-08-23/24 (Cowork)
+
+Executed same-domain, per Rob's decisions:
+
+- Host: Vercel (`robs-projects` team, Pro — Rob's deliberate upgrade), project `nightingale`, deploying `akaienso/nightingale@main`
+- DB: Neon (`neondb`, US East 2), restored + verified 8/8 tables, 133 users; app runs on the pooled endpoint
+- Storage: R2 `nightingale-uploads` (RMoore.dev account), public dev URL enabled, bucket-scoped token
+- Domains: **www-primary by Rob's preference** — apex 308→www; `www` serves the marketing rewrite (middleware already listed both hosts); `app` serves the app. All three CNAME → `fd1ff11241099797.vercel-dns-016.com`, DNS-only, in the Cloudflare zone. Fastmail/MX untouched. Legacy `www.app.nightingale.im` A-record left in place (Rob's call to delete).
+- `NEXTAUTH_URL=https://app.nightingale.im` (Production env only), redeployed
+- Verified externally: apex 308, www 200+TLS, app 200+TLS; Google OAuth redirect URI for the vercel.app preview added earlier
+
+**Standing decisions recorded on the way (Rob, 2026-08-23):**
+1. App lives at `app.` ONLY. Apex/www belong to the marketing site.
+2. The marketing site becomes a **WordPress site on Rob's stack** at the rebrand — the embedded `/site` page at www is a temporary arrangement, not the architecture.
+3. At the rebrand, the split executes: WordPress marketing on the (new) apex/www, app on `app.` No agent re-decides this.
+
+**Post-cutover punch list (phase 2):** email sending onboarding + `CF_EMAIL_API_TOKEN` (forms currently error, accepted), rotate `NEXTAUTH_SECRET` + Neon password (values passed through AI transcripts during the sprint), PDF-preview thumbnail card, `max_tokens: 3000` extraction ceiling, Prisma explicit output before v7, WordPress marketing site, rebrand to Soloveico, delete Abacus OAuth-era `www.app` DNS record, cancel-Abacus confirmation (subscription already cancelled, service lapses at period end).
