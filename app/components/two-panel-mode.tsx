@@ -53,14 +53,24 @@ function useCollisionCompact<T extends HTMLElement>() {
   return { ref, compact };
 }
 
+interface LoadedEntry {
+  /** Changes on every pick so re-selecting the same entry still triggers a load. */
+  nonce: number;
+  sourceText: string;
+  translation: string;
+  culturalNote: string | null;
+}
+
 interface TwoPanelModeProps {
   settings: TranslationSettings;
   onToggleDirection: () => void;
   onSaveHistory?: (data: any) => void;
   onUpdate?: (updates: Partial<TranslationSettings>) => void;
+  /** Set when the user picks an entry in the history panel. */
+  loadEntry?: LoadedEntry | null;
 }
 
-export default function TwoPanelMode({ settings, onToggleDirection, onSaveHistory, onUpdate }: TwoPanelModeProps) {
+export default function TwoPanelMode({ settings, onToggleDirection, onSaveHistory, onUpdate, loadEntry }: TwoPanelModeProps) {
   const { t, lang } = useI18n();
   const { ref: outHeaderRef, compact: outCompact } = useCollisionCompact<HTMLDivElement>();
   const [sourceText, setSourceText] = useState('');
@@ -74,6 +84,24 @@ export default function TwoPanelMode({ settings, onToggleDirection, onSaveHistor
   const [formatOverride, setFormatOverride] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Apply an entry picked from the history panel.
+  //
+  // Keyed on `nonce`, not on the text, so picking the same entry twice still
+  // reloads it after the user has edited the box. Any in-flight translation is
+  // aborted first — otherwise its stream would land on top of the restored text
+  // a moment later and silently overwrite it.
+  useEffect(() => {
+    if (!loadEntry) return;
+    abortRef.current?.abort?.();
+    abortRef.current = null;
+    setIsTranslating(false);
+    setError(null);
+    setSourceText(loadEntry.sourceText ?? '');
+    setTranslation(loadEntry.translation ?? '');
+    setCulturalNote(loadEntry.culturalNote ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadEntry?.nonce]);
 
   // ---- Mobile stacked-view layout refs & measurements -----------------
   // On mobile the two panes flow at the document level: each fills half the

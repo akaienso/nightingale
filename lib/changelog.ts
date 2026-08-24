@@ -74,6 +74,30 @@ export interface Release {
 // Newest first.
 export const CHANGELOG: Release[] = [
   {
+    version: '1.14.0',
+    date: '2026-08-23',
+    items: [
+      {
+        type: 'new',
+        en: 'Tap any saved translation in your history to open it back up in the translator, ready to edit or re-translate.',
+        uk: 'Торкніться будь-якого збереженого перекладу в історії — і він знову відкриється в перекладачі, готовий до редагування.',
+        es: 'Toca cualquier traducción guardada en tu historial para volver a abrirla en el traductor, lista para editar.',
+      },
+      {
+        type: 'improved',
+        en: 'History entries now expand so you can read the whole thing, and the copy buttons copy the full text instead of the shortened preview.',
+        uk: 'Записи в історії тепер розгортаються, щоб прочитати їх повністю, а кнопки копіювання копіюють увесь текст, а не скорочений уривок.',
+        es: 'Las entradas del historial ahora se expanden para leerlas completas, y los botones de copiar copian el texto entero en vez del resumen.',
+      },
+      {
+        type: 'improved',
+        en: 'Deleting a single translation now offers an undo, so a mis-tap is no longer permanent.',
+        uk: 'Видалення окремого перекладу тепер можна скасувати, тож випадковий дотик уже не є остаточним.',
+        es: 'Al eliminar una traducción ahora puedes deshacerlo, así que un toque accidental ya no es definitivo.',
+      },
+    ],
+  },
+  {
     version: '1.13.3',
     date: '2026-08-10',
     items: [
