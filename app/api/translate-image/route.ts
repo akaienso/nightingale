@@ -5,6 +5,7 @@ import { anthropicComplete, extractJson, ANTHROPIC_MODEL } from '@/lib/anthropic
 import { enforceRateLimits, rateLimitedResponse, LIMITS } from '@/lib/rate-limit';
 import { getPartnerInfo } from '@/lib/languages';
 import { UKRAINIAN_PURITY_DIRECTIVE } from '@/lib/ukrainian-purity';
+import { sniffMediaType, mediaContentBlock } from '@/lib/media-type';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,21 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Identify the upload from its bytes. `contentType` is only a hint — the
+    // browser derives it from the file extension and it is empty for many
+    // files. A wrong media_type is a hard 400 from Anthropic, not a soft
+    // failure, so sniff first and use the declared type only as a tiebreak.
+    const media = sniffMediaType(imageBase64, contentType);
+    if (!media) {
+      return new Response(
+        JSON.stringify({
+          error: 'Unsupported file type. Upload a PDF or a JPEG, PNG, GIF, or WebP image.',
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    const isPdf = media.kind === 'pdf';
+
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'API key not configured' }), {
@@ -66,10 +82,12 @@ export async function POST(request: NextRequest) {
       business: 'formal business correspondence',
     };
 
+    // The prompt says "image" or "document" to match what was actually sent.
+    const srcNoun = isPdf ? 'document' : 'image';
     const systemPrompt = `You are Nightingale, the AI translation engine — an expert OCR reader and translator between Ukrainian and ${partnerVariant}, with deep expertise in Ukrainian culture, media, and regional dialects (drawing on the perspective of someone who understands both Odesa and Lviv worlds). Never refer to yourself by any personal name; you are simply Nightingale.
 
 YOUR TASK:
-1. Extract ALL text visible in the image, preserving line breaks and structure.
+1. Extract ALL text visible in the ${srcNoun}, preserving line breaks and structure.
 2. DETECT the actual language of the extracted text. The user indicated their content is in ${sourceLangHint}, but if the text you actually read is clearly in a different language, trust the text you read — not the hint.
 3. TRANSLATE the extracted text into the OPPOSITE language from its source:
    - If the source text is Ukrainian, translate it into natural, everyday ${partnerVariant} — write in ${partnerVariantGuidance}.
@@ -86,18 +104,23 @@ CRITICAL RULES:
 
 Respond with raw JSON only:
 {
-  "extractedText": "original text exactly as it appears in the image",
+  "extractedText": "original text exactly as it appears in the ${srcNoun}",
   "translation": "the translated text, in the OPPOSITE language from the source",
   "culturalNote": "optional cultural context written in ${noteLangName}, or null"
 }`;
 
-    const mimeType = contentType || 'image/jpeg';
+    // The document/image block must come BEFORE the text block.
     const messages = [
       {
         role: 'user' as const,
         content: [
-          { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
-          { type: 'text', text: 'Extract the text from this image and translate it according to the instructions.' },
+          mediaContentBlock(media, imageBase64),
+          {
+            type: 'text',
+            text: isPdf
+              ? 'Extract the text from this document and translate it according to the instructions.'
+              : 'Extract the text from this image and translate it according to the instructions.',
+          },
         ],
       },
     ];
